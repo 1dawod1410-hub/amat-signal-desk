@@ -252,3 +252,18 @@ h1 span { color: #81918f; font-size: 11px; letter-spacing: .1em; vertical-align:
 @keyframes spin { to { transform: rotate(360deg); } }
 @media (max-width: 900px) { .tools-inner { flex-wrap: wrap; padding-block: 9px; } .search-box { order: 1; flex-basis: 100%; } .watchlist { order: 2; width: 100%; overflow-x: auto; padding-bottom: 2px; } .watch-label { margin-left: auto; } }
 @media (max-width: 620px) { .sticky-tools { top: 0; } .tools-inner { gap: 8px; } .search-box { min-width: 0; } .search-box input { font-size: 11px; } .search-box button { padding-inline: 11px; } .watchlist { scrollbar-width: none; } .watchlist::-webkit-scrollbar { display: none; } .watch-chip { min-width: 48px; } }
+
+/* v4 alerts + persisted watchlist */
+.watchlist { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+.watch-item { display: inline-flex; align-items: center; gap: 2px; }
+.watch-remove { display: inline-grid; place-items: center; width: 17px; height: 17px; padding: 0; border: 0; border-radius: 50%; color: #78908a; background: rgba(255,255,255,.04); cursor: pointer; }
+.watch-remove:hover { color: #f27e77; background: rgba(242,126,119,.12); }
+.alerts-panel { padding: 20px 24px; }
+.alert-list { display: grid; gap: 7px; margin-top: 15px; }
+.alert-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; border: 1px solid rgba(255,255,255,.08); border-radius: 11px; color: #93a5a0; background: rgba(255,255,255,.025); padding: 10px 11px; text-align: right; cursor: pointer; transition: all 160ms cubic-bezier(.23,1,.32,1); }
+.alert-row:hover { border-color: rgba(94,224,186,.32); transform: translateY(-1px); }
+.alert-row.enabled { color: var(--primary); border-color: rgba(94,224,186,.28); background: rgba(94,224,186,.08); }
+.alert-row span { display: inline-flex; align-items: center; gap: 7px; }
+.alert-row small { color: #82938e; font-family: "Space Grotesk", sans-serif; direction: ltr; }
+.alert-row.enabled small { color: #b9e8d8; }
+@media (max-width: 620px) { .tools-inner { align-items: stretch; } .watchlist { overflow-x: auto; flex-wrap: nowrap; padding-bottom: 2px; } .watch-label { white-space: nowrap; } .alerts-panel { padding-inline: 18px; } }
