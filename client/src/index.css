@@ -267,3 +267,36 @@ h1 span { color: #81918f; font-size: 11px; letter-spacing: .1em; vertical-align:
 .alert-row small { color: #82938e; font-family: "Space Grotesk", sans-serif; direction: ltr; }
 .alert-row.enabled small { color: #b9e8d8; }
 @media (max-width: 620px) { .tools-inner { align-items: stretch; } .watchlist { overflow-x: auto; flex-wrap: nowrap; padding-bottom: 2px; } .watch-label { white-space: nowrap; } .alerts-panel { padding-inline: 18px; } }
+
+/* v5 custom ranges, Telegram delivery, and alert history */
+.v5-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-top: 18px; position: relative; z-index: 1; }
+.settings-panel { padding: 22px 24px; }
+.range-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; margin-top: 17px; }
+.range-form label, .telegram-input { display: grid; gap: 5px; color: #758683; font-size: 10px; }
+.range-form input, .telegram-input input { width: 100%; border: 1px solid rgba(221,243,238,.12); border-radius: 9px; color: #e9f1f0; background: rgba(255,255,255,.045); padding: 9px 10px; font-family: "Space Grotesk", sans-serif; direction: ltr; outline: none; }
+.range-form input:focus, .telegram-input input:focus { border-color: rgba(94,224,186,.55); box-shadow: 0 0 0 3px rgba(94,224,186,.08); }
+.v5-primary, .v5-secondary, .schedule-button { border-radius: 9px; padding: 10px 13px; border: 1px solid transparent; font-size: 11px; cursor: pointer; transition: all 160ms cubic-bezier(.23,1,.32,1); }
+.v5-primary { color: #07110e; background: var(--primary); box-shadow: 0 7px 18px rgba(94,224,186,.12); }
+.v5-primary:hover { transform: translateY(-1px); box-shadow: 0 10px 24px rgba(94,224,186,.18); }
+.v5-primary:disabled, .v5-secondary:disabled, .schedule-button:disabled { opacity: .45; cursor: not-allowed; transform: none; }
+.settings-panel > .v5-primary { margin-top: 14px; }
+.telegram-input { margin-top: 15px; }
+.toggle-line { display: flex; align-items: center; gap: 7px; color: #9cafaa; font-size: 11px; margin-top: 12px; }
+.toggle-line input { accent-color: var(--primary); }
+.button-row { display: flex; gap: 8px; margin-top: 15px; }
+.v5-secondary { color: #a8bbb5; background: rgba(255,255,255,.045); border-color: var(--border); }
+.v5-secondary:hover { color: var(--primary); border-color: rgba(94,224,186,.3); }
+.schedule-button { width: 100%; color: var(--primary); border-color: rgba(94,224,186,.22); background: rgba(94,224,186,.08); margin-top: 11px; }
+.schedule-button:hover { background: rgba(94,224,186,.14); }
+.settings-hint { display: block; color: #657773; font-size: 9px; margin-top: 8px; }
+.history-panel { padding: 22px 24px; margin-top: 18px; position: relative; z-index: 1; }
+.history-table { margin-top: 15px; overflow-x: auto; }
+.history-header, .history-row { min-width: 700px; display: grid; grid-template-columns: .7fr 1.15fr .8fr 1.25fr .9fr 1.4fr; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,.06); font-size: 10px; }
+.history-header { color: #6f817d; font-family: "Space Grotesk", sans-serif; font-size: 9px; letter-spacing: .08em; text-transform: uppercase; direction: ltr; }
+.history-row { color: #9cafaa; }
+.history-row strong, .history-row span:nth-child(3) { color: #edf5f3; font-family: "Space Grotesk", sans-serif; direction: ltr; }
+.history-row time { color: #74847f; direction: ltr; }
+.history-empty { color: #71827e; font-size: 11px; padding: 18px 0 4px; }
+.notice-toast { position: fixed; bottom: 20px; right: 20px; z-index: 10; border: 1px solid rgba(94,224,186,.3); border-radius: 10px; color: #07110e; background: var(--primary); padding: 11px 14px; font-size: 11px; cursor: pointer; box-shadow: 0 15px 35px rgba(0,0,0,.25); }
+@media (max-width: 900px) { .v5-grid { grid-template-columns: 1fr; } }
+@media (max-width: 620px) { .settings-panel, .history-panel { padding-inline: 18px; } .range-form { grid-template-columns: 1fr 1fr; } .button-row { flex-wrap: wrap; } .button-row > * { flex: 1; } .history-header, .history-row { min-width: 680px; } .notice-toast { right: 14px; left: 14px; bottom: 14px; text-align: center; } }

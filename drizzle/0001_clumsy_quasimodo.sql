@@ -1,0 +1,1 @@
+ALTER TABLE `telegram_settings` ADD `scheduleCronTaskUid` varchar(65);

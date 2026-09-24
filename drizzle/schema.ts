@@ -1,17 +1,7 @@
-import { int, mysqlEnum, mysqlTable, text, timestamp, varchar } from "drizzle-orm/mysql-core";
+import { decimal, int, mysqlEnum, mysqlTable, text, timestamp, uniqueIndex, varchar } from "drizzle-orm/mysql-core";
 
-/**
- * Core user table backing auth flow.
- * Extend this file with additional tables as your product grows.
- * Columns use camelCase to match both database fields and generated types.
- */
 export const users = mysqlTable("users", {
-  /**
-   * Surrogate primary key. Auto-incremented numeric value managed by the database.
-   * Use this for relations between tables.
-   */
   id: int("id").autoincrement().primaryKey(),
-  /** Manus OAuth identifier (openId) returned from the OAuth callback. Unique per user. */
   openId: varchar("openId", { length: 64 }).notNull().unique(),
   name: text("name"),
   email: varchar("email", { length: 320 }),
@@ -22,7 +12,42 @@ export const users = mysqlTable("users", {
   lastSignedIn: timestamp("lastSignedIn").defaultNow().notNull(),
 });
 
+export const alertRules = mysqlTable("alert_rules", {
+  id: int("id").autoincrement().primaryKey(),
+  symbol: varchar("symbol", { length: 10 }).notNull(),
+  demandLow: decimal("demandLow", { precision: 12, scale: 4 }).notNull(),
+  demandHigh: decimal("demandHigh", { precision: 12, scale: 4 }).notNull(),
+  target1Low: decimal("target1Low", { precision: 12, scale: 4 }).notNull(),
+  target1High: decimal("target1High", { precision: 12, scale: 4 }).notNull(),
+  target2Low: decimal("target2Low", { precision: 12, scale: 4 }).notNull(),
+  target2High: decimal("target2High", { precision: 12, scale: 4 }).notNull(),
+  enabled: int("enabled").default(1).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, (table) => ({ symbolUnique: uniqueIndex("alert_rules_symbol_unique").on(table.symbol) }));
+
+export const telegramSettings = mysqlTable("telegram_settings", {
+  id: int("id").autoincrement().primaryKey(),
+  chatId: varchar("chatId", { length: 128 }).notNull(),
+  enabled: int("enabled").default(1).notNull(),
+  scheduleCronTaskUid: varchar("scheduleCronTaskUid", { length: 65 }),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export const alertHistory = mysqlTable("alert_history", {
+  id: int("id").autoincrement().primaryKey(),
+  symbol: varchar("symbol", { length: 10 }).notNull(),
+  alertType: mysqlEnum("alertType", ["demand", "target1", "target2"]).notNull(),
+  price: varchar("price", { length: 32 }).notNull(),
+  rangeLabel: varchar("rangeLabel", { length: 64 }).notNull(),
+  provider: varchar("provider", { length: 64 }).notNull(),
+  delivery: varchar("delivery", { length: 32 }).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
-
-// TODO: Add your tables here
+export type AlertRule = typeof alertRules.$inferSelect;
+export type TelegramSetting = typeof telegramSettings.$inferSelect;
+export type AlertHistory = typeof alertHistory.$inferSelect;
