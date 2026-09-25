@@ -5,7 +5,7 @@ import { getSessionCookieOptions } from "./_core/cookies";
 import { createHeartbeatJob } from "./_core/heartbeat";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router } from "./_core/trpc";
-import { addAlertHistory, addPermanentWatch, getAlertRule, getRadarSettings, getTelegramSettings, listAlertHistory, listPermanentWatchlist, listRadar, saveAlertRule, saveTelegramSettings, setRadarScheduleTaskUid, setTelegramScheduleTaskUid, trackTrade } from "./db";
+import { addAlertHistory, addPermanentWatch, getAlertRule, getRadarSettings, getTelegramSettings, listAlertHistory, listPermanentWatchlist, listRadar, saveAlertRule, saveTelegramSettings, setRadarScheduleTaskUid, setTelegramScheduleTaskUid, trackTrade, updateTrailingSettings } from "./db";
 import { getMarketData } from "./marketData";
 import { scanRadar, scanAndNotifyRadar } from "./radar";
 import { sendTelegramMessage, telegramConfigured } from "./telegram";
@@ -22,10 +22,11 @@ export const appRouter = router({
     rule: publicProcedure.input(z.object({ symbol: symbolSchema })).query(async ({ input }) => getAlertRule(input.symbol)),
     saveRule: publicProcedure.input(alertInput).mutation(async ({ input }) => saveAlertRule(input)),
     history: publicProcedure.input(z.object({ limit: z.number().int().min(1).max(100).default(50) }).optional()).query(async ({ input }) => listAlertHistory(input?.limit ?? 50)),
-    recordLocal: publicProcedure.input(z.object({ symbol: z.string().trim().toUpperCase().max(10), alertType: z.enum(["demand", "target1", "target2", "target3", "stopLoss"]), price: z.string(), rangeLabel: z.string(), provider: z.string() })).mutation(async ({ input }) => { await addAlertHistory({ ...input, delivery: "browser" }); return { success: true } as const; }),
+    recordLocal: publicProcedure.input(z.object({ symbol: z.string().trim().toUpperCase().max(10), alertType: z.enum(["demand", "target1", "target2", "target3", "stopLoss", "trailingStop"]), price: z.string(), rangeLabel: z.string(), provider: z.string() })).mutation(async ({ input }) => { await addAlertHistory({ ...input, delivery: "browser" }); return { success: true } as const; }),
   }),
   trade: router({
-    track: publicProcedure.input(z.object({ symbol: symbolSchema, active: z.boolean(), entryPrice: priceSchema.optional() })).mutation(async ({ input }) => trackTrade(input.symbol, input.active, input.entryPrice)),
+    track: publicProcedure.input(z.object({ symbol: symbolSchema, active: z.boolean(), entryPrice: priceSchema.optional(), trailingPercent: priceSchema.optional() })).mutation(async ({ input }) => trackTrade(input.symbol, input.active, input.entryPrice, input.trailingPercent)),
+    trailingSettings: publicProcedure.input(z.object({ symbol: symbolSchema, trailingPercent: priceSchema })).mutation(({ input }) => updateTrailingSettings(input.symbol, input.trailingPercent)),
   }),
   telegram: router({
     status: publicProcedure.query(async () => { const settings = await getTelegramSettings(); return { configured: telegramConfigured(), enabled: Boolean(settings?.enabled), chatId: settings?.chatId ?? "", scheduled: Boolean(settings?.scheduleCronTaskUid) }; }),

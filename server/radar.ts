@@ -1,4 +1,4 @@
-import { replaceRadar, listRadar, getRadarSettings, updateTrackedPrices, listAlertRules, addAlertHistory, hasRecentAlert } from "./db";
+import { replaceRadar, listRadar, getRadarSettings, updateTrackedPrices, listAlertRules, addAlertHistory, hasRecentAlert, getTelegramSettings } from "./db";
 import { sendTelegramMessage } from "./telegram";
 
 export const RADAR_UNIVERSE = ["AAPL","MSFT","NVDA","AMZN","META","GOOGL","AVGO","TSLA","AMD","NFLX","MU","AMAT","QCOM","INTC","LRCX","KLAC","CRM","ORCL","PLTR","SMCI","COIN","MSTR","MARA","CRWD","PANW","SOFI","UBER","SHOP","ARM","MRVL"] as const;
@@ -33,12 +33,12 @@ export async function scanRadar() {
 
 export async function scanAndNotifyRadar() {
   const rows = await scanRadar();
-  const telegram = await import("./db").then(({ getTelegramSettings }) => getTelegramSettings());
+  const telegram = await getTelegramSettings();
   if (telegram?.enabled && telegram.chatId && process.env.TELEGRAM_BOT_TOKEN && rows[0]) {
     const top = rows.slice(0, 3).map((row, index) => `${index + 1}. ${row.symbol} · $${Number(row.price).toFixed(2)} · score ${Number(row.score).toFixed(0)} · طلب $${Number(row.demandLow).toFixed(2)}–$${Number(row.demandHigh).toFixed(2)}`).join("\n");
     if (!(await hasRecentAlert("RADAR", "demand", 55))) { await sendTelegramMessage(`Alpha Signals · Radar 30\nأعلى الفرص نشاطاً:\n${top}`, telegram.chatId); await addAlertHistory({ symbol: "RADAR", alertType: "demand", price: String(rows[0].price), rangeLabel: "Top 3 radar", provider: "Yahoo Finance chart", delivery: "telegram" }); }
   }
-  for (const rule of await listAlertRules()) if (rule.trackTrade && rule.entryPrice) { const quote = rows.find((row) => row.symbol === rule.symbol); if (quote) await updateTrackedPrices(rule.symbol, Number(quote.price)); }
+  for (const rule of await listAlertRules()) if (rule.trackTrade && rule.entryPrice) { const quote = rows.find((row) => row.symbol === rule.symbol); if (quote) { const trailing = await updateTrackedPrices(rule.symbol, Number(quote.price)); if (trailing.promoted && telegram?.enabled && telegram.chatId && process.env.TELEGRAM_BOT_TOKEN && !(await hasRecentAlert(rule.symbol, "trailingStop", 120))) { const stop = Number(trailing.trailingStop); await sendTelegramMessage(`Signal Desk\n${rule.symbol} · Trailing Stop مفعّل\nالهدف الأول تحقق عند $${Number(quote.price).toFixed(2)}\nالوقف الجديد: $${stop.toFixed(2)}`, telegram.chatId); await addAlertHistory({ symbol: rule.symbol, alertType: "trailingStop", price: Number(quote.price).toFixed(2), rangeLabel: `وقف متحرك $${stop.toFixed(2)}`, provider: quote.provider, delivery: "telegram" }); } } }
   return { count: rows.length, top: rows.slice(0, 5), settings: await getRadarSettings() };
 }
 

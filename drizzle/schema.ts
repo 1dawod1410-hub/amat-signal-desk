@@ -13,7 +13,7 @@ export const alertRules = mysqlTable("alert_rules", {
   target1Low: decimal("target1Low", { precision: 12, scale: 4 }).notNull(), target1High: decimal("target1High", { precision: 12, scale: 4 }).notNull(),
   target2Low: decimal("target2Low", { precision: 12, scale: 4 }).notNull(), target2High: decimal("target2High", { precision: 12, scale: 4 }).notNull(),
   stopLoss: decimal("stopLoss", { precision: 12, scale: 4 }), target3Low: decimal("target3Low", { precision: 12, scale: 4 }), target3High: decimal("target3High", { precision: 12, scale: 4 }),
-  trackTrade: int("trackTrade").default(0).notNull(), entryPrice: decimal("entryPrice", { precision: 12, scale: 4 }), trackedAt: timestamp("trackedAt"), lastPrice: decimal("lastPrice", { precision: 12, scale: 4 }), lastPnlPercent: decimal("lastPnlPercent", { precision: 12, scale: 4 }),
+  trackTrade: int("trackTrade").default(0).notNull(), entryPrice: decimal("entryPrice", { precision: 12, scale: 4 }), trackedAt: timestamp("trackedAt"), lastPrice: decimal("lastPrice", { precision: 12, scale: 4 }), lastPnlPercent: decimal("lastPnlPercent", { precision: 12, scale: 4 }), trailingPercent: decimal("trailingPercent", { precision: 8, scale: 4 }).default("5"), highestPrice: decimal("highestPrice", { precision: 12, scale: 4 }), target1Hit: int("target1Hit").default(0).notNull(), trailingStopActive: int("trailingStopActive").default(0).notNull(),
   enabled: int("enabled").default(1).notNull(), createdAt: timestamp("createdAt").defaultNow().notNull(), updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 }, (table) => ({ symbolUnique: uniqueIndex("alert_rules_symbol_unique").on(table.symbol) }));
 
@@ -34,7 +34,7 @@ export const permanentWatchlist = mysqlTable("permanent_watchlist", {
 }, (table) => ({ symbolUnique: uniqueIndex("permanent_watchlist_symbol_unique").on(table.symbol) }));
 
 export const alertHistory = mysqlTable("alert_history", {
-  id: int("id").autoincrement().primaryKey(), symbol: varchar("symbol", { length: 10 }).notNull(), alertType: mysqlEnum("alertType", ["demand", "target1", "target2", "target3", "stopLoss"]).notNull(), price: varchar("price", { length: 32 }).notNull(), rangeLabel: varchar("rangeLabel", { length: 64 }).notNull(), provider: varchar("provider", { length: 64 }).notNull(), delivery: varchar("delivery", { length: 32 }).notNull(), createdAt: timestamp("createdAt").defaultNow().notNull(),
+  id: int("id").autoincrement().primaryKey(), symbol: varchar("symbol", { length: 10 }).notNull(), alertType: mysqlEnum("alertType", ["demand", "target1", "target2", "target3", "stopLoss", "trailingStop"]).notNull(), price: varchar("price", { length: 32 }).notNull(), rangeLabel: varchar("rangeLabel", { length: 64 }).notNull(), provider: varchar("provider", { length: 64 }).notNull(), delivery: varchar("delivery", { length: 32 }).notNull(), createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 
 export type User = typeof users.$inferSelect; export type InsertUser = typeof users.$inferInsert; export type AlertRule = typeof alertRules.$inferSelect; export type TelegramSetting = typeof telegramSettings.$inferSelect; export type AlertHistory = typeof alertHistory.$inferSelect; export type RadarOpportunity = typeof radarOpportunities.$inferSelect;

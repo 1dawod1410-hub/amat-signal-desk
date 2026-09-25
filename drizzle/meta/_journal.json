@@ -22,6 +22,13 @@
       "when": 1790302543403,
       "tag": "0002_elite_karma",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "5",
+      "when": 1790303253445,
+      "tag": "0003_large_solo",
+      "breakpoints": true
     }
   ]
 }
