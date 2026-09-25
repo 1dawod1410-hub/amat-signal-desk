@@ -10,6 +10,8 @@ import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
 import { sdk } from "./sdk";
 import { runAlertSweep } from "../telegram";
+import { scanAndNotifyRadar } from "../radar";
+import { getRadarSettingsByTaskUid } from "../db";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -51,6 +53,16 @@ async function startServer() {
       const user = await sdk.authenticateRequest(req);
       if (!user.isCron || !user.taskUid) return res.status(403).json({ error: "cron-only" });
       return res.json({ ok: true, ...(await runAlertSweep()) });
+    } catch (error) {
+      return res.status(500).json({ error: error instanceof Error ? error.message : String(error), timestamp: new Date().toISOString() });
+    }
+  });
+  app.post("/api/scheduled/scan-radar", async (req, res) => {
+    try {
+      const user = await sdk.authenticateRequest(req);
+      if (!user.isCron || !user.taskUid) return res.status(403).json({ error: "cron-only" });
+      if (!(await getRadarSettingsByTaskUid(user.taskUid))) return res.json({ ok: true, skipped: "orphan" });
+      return res.json({ ok: true, ...(await scanAndNotifyRadar()) });
     } catch (error) {
       return res.status(500).json({ error: error instanceof Error ? error.message : String(error), timestamp: new Date().toISOString() });
     }

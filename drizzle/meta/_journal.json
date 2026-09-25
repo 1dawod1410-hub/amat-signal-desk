@@ -15,6 +15,13 @@
       "when": 1790271453837,
       "tag": "0001_clumsy_quasimodo",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1790302543403,
+      "tag": "0002_elite_karma",
+      "breakpoints": true
     }
   ]
 }
