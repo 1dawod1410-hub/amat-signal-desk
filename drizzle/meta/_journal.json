@@ -29,6 +29,13 @@
       "when": 1790303253445,
       "tag": "0003_large_solo",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "5",
+      "when": 1790304070762,
+      "tag": "0004_sweet_winter_soldier",
+      "breakpoints": true
     }
   ]
 }

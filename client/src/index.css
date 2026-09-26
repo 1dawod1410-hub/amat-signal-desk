@@ -335,3 +335,8 @@ h1 span { color: #81918f; font-size: 11px; letter-spacing: .1em; vertical-align:
 @media (max-width: 1000px) { .radar-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .trade-range-form { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 @media (max-width: 700px) { .radar-toolbar { align-items: stretch; flex-direction: column; } .radar-toolbar .button-row { width: 100%; } .radar-grid { grid-template-columns: 1fr; } .trade-range-form { grid-template-columns: repeat(2, minmax(0, 1fr)); } .entry-track-row { grid-template-columns: 1fr; } .track-button { width: 100%; } }
 @media (max-width: 420px) { .trade-range-form { grid-template-columns: 1fr; } }
+
+/* v5.3 manual close trade */
+.close-trade-button { display: flex; align-items: center; justify-content: center; gap: 7px; width: 100%; margin: 12px 0 2px; padding: 10px 12px; border: 1px solid rgba(242,126,119,.35); border-radius: 9px; color: #ffaaa2; background: rgba(242,126,119,.08); cursor: pointer; font-size: 10px; transition: all 160ms cubic-bezier(.23,1,.32,1); }
+.close-trade-button:hover { color: #160b0a; background: #f27e77; transform: translateY(-1px); }
+.close-trade-button:disabled { opacity: .55; cursor: wait; transform: none; }

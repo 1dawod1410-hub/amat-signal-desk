@@ -5,7 +5,7 @@ import { getSessionCookieOptions } from "./_core/cookies";
 import { createHeartbeatJob } from "./_core/heartbeat";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router } from "./_core/trpc";
-import { addAlertHistory, addPermanentWatch, getAlertRule, getRadarSettings, getTelegramSettings, listAlertHistory, listPermanentWatchlist, listRadar, saveAlertRule, saveTelegramSettings, setRadarScheduleTaskUid, setTelegramScheduleTaskUid, trackTrade, updateTrailingSettings } from "./db";
+import { addAlertHistory, addPermanentWatch, closeTrade, getAlertRule, getRadarSettings, getTelegramSettings, listAlertHistory, listPermanentWatchlist, listRadar, saveAlertRule, saveTelegramSettings, setRadarScheduleTaskUid, setTelegramScheduleTaskUid, trackTrade, updateTrailingSettings } from "./db";
 import { getMarketData } from "./marketData";
 import { scanRadar, scanAndNotifyRadar } from "./radar";
 import { sendTelegramMessage, telegramConfigured } from "./telegram";
@@ -26,6 +26,7 @@ export const appRouter = router({
   }),
   trade: router({
     track: publicProcedure.input(z.object({ symbol: symbolSchema, active: z.boolean(), entryPrice: priceSchema.optional(), trailingPercent: priceSchema.optional() })).mutation(async ({ input }) => trackTrade(input.symbol, input.active, input.entryPrice, input.trailingPercent)),
+    close: publicProcedure.input(z.object({ symbol: symbolSchema, price: priceSchema })).mutation(({ input }) => closeTrade(input.symbol, Number(input.price))),
     trailingSettings: publicProcedure.input(z.object({ symbol: symbolSchema, trailingPercent: priceSchema })).mutation(({ input }) => updateTrailingSettings(input.symbol, input.trailingPercent)),
   }),
   telegram: router({

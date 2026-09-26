@@ -18,6 +18,13 @@ describe("calculateTrailingStop", () => {
     expect(result.stopped).toBe(false);
   });
 
+  it("never places the promoted stop below break-even", () => {
+    const result = calculateTrailingStop({ price: 116, entryPrice: 100, target1High: 115, previousStop: 90, trailingPercent: 50 });
+    expect(result.target1Hit).toBe(true);
+    expect(result.trailingStop).toBe(100);
+    expect(result.trailingStop).toBeGreaterThanOrEqual(100);
+  });
+
   it("only ratchets upward and flags a reversal through the stop", () => {
     const result = calculateTrailingStop({ price: 123, entryPrice: 100, target1High: 115, previousStop: 110.2, highestPrice: 130, target1Hit: true, trailingStopActive: true, trailingPercent: 5 });
     expect(result.highestPrice).toBe(130);
