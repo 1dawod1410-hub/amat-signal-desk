@@ -51,4 +51,28 @@ describe("4H candle demand zones", () => {
     expect(classifyDemandBreak(zone, 89, 89.5)).toBe("confirmed_close_break");
     expect(classifyDemandBreak(zone, 92, 93)).toBe("none");
   });
+
+  it("rejects a zone after the latest completed 4H candle closes below demandLow", () => {
+    const candles = addCandleFeatures([
+      candle("2026-09-25T13:30:00Z", 98, 101, 95, 100),
+      candle("2026-09-26T13:30:00Z", 99, 102, 96, 101),
+      candle("2026-09-27T13:30:00Z", 100, 104, 90, 102),
+      candle("2026-09-28T13:30:00Z", 102, 106, 101, 105),
+      candle("2026-09-29T13:30:00Z", 105, 107, 103, 106),
+      candle("2026-09-30T13:30:00Z", 89, 93, 87, 88),
+    ]);
+    expect(findConfirmedDemandZone(candles, "AMAT")).toBeNull();
+  });
+
+  it("keeps a zone active when the latest candle only sweeps the low with its wick", () => {
+    const candles = addCandleFeatures([
+      candle("2026-09-25T13:30:00Z", 98, 101, 95, 100),
+      candle("2026-09-26T13:30:00Z", 99, 102, 96, 101),
+      candle("2026-09-27T13:30:00Z", 100, 104, 90, 102),
+      candle("2026-09-28T13:30:00Z", 102, 106, 101, 105),
+      candle("2026-09-29T13:30:00Z", 105, 107, 103, 106),
+      candle("2026-09-30T13:30:00Z", 92, 103, 89, 94),
+    ]);
+    expect(findConfirmedDemandZone(candles, "AMAT")?.breakType).toBe("wick_break");
+  });
 });

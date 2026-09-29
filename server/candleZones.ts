@@ -68,7 +68,11 @@ export function findConfirmedDemandZone(candles: Candle4H[], symbol: string, loo
     const confirmation = data.slice(i + 1, i + 4).find((candle) => candle.close > candidate.bodyHigh);
     if (!confirmation) continue;
     const cluster = data.slice(Math.max(0, i - 2), i + 1);
-    return { symbol: symbol.toUpperCase(), demandLow: Math.min(...cluster.map((candle) => candle.low)), demandHigh: Math.max(...cluster.map((candle) => candle.bodyHigh)), sourceCandleTime: candidate.timestamp, confirmationClose: confirmation.close, status: "confirmed", breakType: "none", provider: "Finnhub 60m aggregated to 4H" };
+    const zone: DemandZone = { symbol: symbol.toUpperCase(), demandLow: Math.min(...cluster.map((candle) => candle.low)), demandHigh: Math.max(...cluster.map((candle) => candle.bodyHigh)), sourceCandleTime: candidate.timestamp, confirmationClose: confirmation.close, status: "confirmed", breakType: "none", provider: "Finnhub 60m aggregated to 4H" };
+    const latest = data[data.length - 1];
+    zone.breakType = classifyDemandBreak(zone, latest.low, latest.close);
+    if (zone.breakType === "confirmed_close_break") return null;
+    return zone;
   }
   return null;
 }
