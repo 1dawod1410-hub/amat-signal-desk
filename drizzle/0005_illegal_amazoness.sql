@@ -1,0 +1,1 @@
+ALTER TABLE `alert_rules` ADD `demandAlertLatched` int DEFAULT 0 NOT NULL;
