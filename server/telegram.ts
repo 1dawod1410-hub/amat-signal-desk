@@ -1,13 +1,15 @@
 import { addAlertHistory, getTelegramSettings, listAlertRules, hasRecentAlert, setDemandAlertLatched, updateTrackedPrices } from "./db";
 import { getMarketData } from "./marketData";
+import { getEarningsRisk } from "./earnings";
 
 const TELEGRAM_API = "https://api.telegram.org";
 
 export function telegramConfigured() { return Boolean(process.env.TELEGRAM_BOT_TOKEN); }
 export function isInsideDemand(price: number, low: number, high: number) { return price >= low && price <= high; }
-export function formatDemandAlert(input: { symbol: string; price: number; demandLow: number; demandHigh: number; stopLoss: number; target1Low: number; target1High: number; target2Low: number; target2High: number; provider: string; trackedPnl?: number | null; entryPrice?: number | null }) {
+export function formatDemandAlert(input: { symbol: string; price: number; demandLow: number; demandHigh: number; stopLoss: number; target1Low: number; target1High: number; target2Low: number; target2High: number; provider: string; trackedPnl?: number | null; entryPrice?: number | null; earningsWarning?: boolean; earningsDate?: string | null }) {
   const pnlLine = input.trackedPnl === null || input.trackedPnl === undefined || input.entryPrice === null || input.entryPrice === undefined ? "" : `\nP/L من الدخول $${input.entryPrice.toFixed(2)}: ${input.trackedPnl >= 0 ? "+" : ""}${input.trackedPnl.toFixed(2)}%`;
-  return `Signal Desk · تنبيه منطقة الطلب\nالسهم: ${input.symbol}\nالسعر الحالي: $${input.price.toFixed(2)}\nمنطقة الدخول: $${input.demandLow.toFixed(2)} — $${input.demandHigh.toFixed(2)}\nوقف الخسارة: $${input.stopLoss.toFixed(2)}\nالهدف 1: $${input.target1Low.toFixed(2)} — $${input.target1High.toFixed(2)}\nالهدف 2: $${input.target2Low.toFixed(2)} — $${input.target2High.toFixed(2)}${pnlLine}\nالمصدر: ${input.provider}`;
+  const earningsLine = input.earningsWarning ? `\n⚠️ HIGH RISK: Upcoming Earnings Release${input.earningsDate ? ` (${input.earningsDate})` : ""}` : "";
+  return `Signal Desk · تنبيه منطقة الطلب${earningsLine}\nالسهم: ${input.symbol}\nالسعر الحالي: $${input.price.toFixed(2)}\nمنطقة الدخول: $${input.demandLow.toFixed(2)} — $${input.demandHigh.toFixed(2)}\nوقف الخسارة: $${input.stopLoss.toFixed(2)}\nالهدف 1: $${input.target1Low.toFixed(2)} — $${input.target1High.toFixed(2)}\nالهدف 2: $${input.target2Low.toFixed(2)} — $${input.target2High.toFixed(2)}${pnlLine}\nالمصدر: ${input.provider}`;
 }
 
 export async function sendTelegramMessage(text: string, chatId?: string) {
@@ -45,7 +47,8 @@ export async function runAlertSweep() {
     }
     if (!insideDemand || rule.demandAlertLatched || await hasRecentAlert(rule.symbol, "demand", 30)) continue;
     const trackedPnl = rule.trackTrade && rule.entryPrice ? ((price - Number(rule.entryPrice)) / Number(rule.entryPrice)) * 100 : null;
-    const message = formatDemandAlert({ symbol: rule.symbol, price, demandLow, demandHigh, stopLoss: Number(rule.stopLoss ?? 0), target1Low: Number(rule.target1Low), target1High: Number(rule.target1High), target2Low: Number(rule.target2Low), target2High: Number(rule.target2High), provider: market.provider, trackedPnl, entryPrice: rule.entryPrice ? Number(rule.entryPrice) : null });
+    const earnings = await getEarningsRisk(rule.symbol);
+    const message = formatDemandAlert({ symbol: rule.symbol, price, demandLow, demandHigh, stopLoss: Number(rule.stopLoss ?? 0), target1Low: Number(rule.target1Low), target1High: Number(rule.target1High), target2Low: Number(rule.target2Low), target2High: Number(rule.target2High), provider: market.provider, trackedPnl, entryPrice: rule.entryPrice ? Number(rule.entryPrice) : null, earningsWarning: earnings.highRisk, earningsDate: earnings.earningsDate });
     try { await sendTelegramMessage(message, settings.chatId); await addAlertHistory({ symbol: rule.symbol, alertType: "demand", price: price.toFixed(2), rangeLabel: `$${demandLow.toFixed(2)} — $${demandHigh.toFixed(2)}`, provider: market.provider, delivery: "telegram" }); await setDemandAlertLatched(rule.symbol, true); sent += 1; } catch { /* keep latch open so the next heartbeat can retry */ }
   }
   return { checked, sent };
