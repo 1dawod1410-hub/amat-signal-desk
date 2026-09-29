@@ -1,4 +1,4 @@
-import { addAlertHistory, getTelegramSettings, listAlertRules, hasRecentAlert, setDemandAlertLatched, updateTrackedPrices } from "./db";
+import { addAlertHistory, getTelegramSettings, listAlertRules, listRadar, hasRecentAlert, setDemandAlertLatched, setRadarDemandAlertLatched, updateTrackedPrices } from "./db";
 import { getMarketData } from "./marketData";
 import { getEarningsRisk } from "./earnings";
 
@@ -50,6 +50,18 @@ export async function runAlertSweep() {
     const earnings = await getEarningsRisk(rule.symbol);
     const message = formatDemandAlert({ symbol: rule.symbol, price, demandLow, demandHigh, stopLoss: Number(rule.stopLoss ?? 0), target1Low: Number(rule.target1Low), target1High: Number(rule.target1High), target2Low: Number(rule.target2Low), target2High: Number(rule.target2High), provider: market.provider, trackedPnl, entryPrice: rule.entryPrice ? Number(rule.entryPrice) : null, earningsWarning: earnings.highRisk, earningsDate: earnings.earningsDate });
     try { await sendTelegramMessage(message, settings.chatId); await addAlertHistory({ symbol: rule.symbol, alertType: "demand", price: price.toFixed(2), rangeLabel: `$${demandLow.toFixed(2)} — $${demandHigh.toFixed(2)}`, provider: market.provider, delivery: "telegram" }); await setDemandAlertLatched(rule.symbol, true); sent += 1; } catch { /* keep latch open so the next heartbeat can retry */ }
+  }
+  const ruleSymbols = new Set(rules.map((rule) => rule.symbol));
+  for (const zone of await listRadar()) {
+    if (ruleSymbols.has(zone.symbol) || zone.zoneStatus !== "confirmed") continue;
+    let market;
+    try { market = await getMarketData(zone.symbol); } catch { continue; }
+    const price = market.quote.price; const demandLow = Number(zone.demandLow); const demandHigh = Number(zone.demandHigh); const insideDemand = isInsideDemand(price, demandLow, demandHigh);
+    if (!insideDemand && zone.demandAlertLatched) { await setRadarDemandAlertLatched(zone.symbol, false); continue; }
+    if (!insideDemand || zone.demandAlertLatched || await hasRecentAlert(zone.symbol, "demand", 30)) continue;
+    const earnings = await getEarningsRisk(zone.symbol);
+    const message = formatDemandAlert({ symbol: zone.symbol, price, demandLow, demandHigh, stopLoss: Number(zone.stopLoss), target1Low: Number(zone.target1), target1High: Number(zone.target1), target2Low: Number(zone.target2), target2High: Number(zone.target2), provider: `${market.provider}; ${zone.provider}`, earningsWarning: earnings.highRisk, earningsDate: earnings.earningsDate });
+    try { await sendTelegramMessage(message, settings.chatId); await addAlertHistory({ symbol: zone.symbol, alertType: "demand", price: price.toFixed(2), rangeLabel: `$${demandLow.toFixed(2)} — $${demandHigh.toFixed(2)}`, provider: `${market.provider}; ${zone.provider}`, delivery: "telegram" }); await setRadarDemandAlertLatched(zone.symbol, true); sent += 1; } catch { /* keep latch open so the next heartbeat can retry */ }
   }
   return { checked, sent };
 }
