@@ -5,7 +5,7 @@ import { getSessionCookieOptions } from "./_core/cookies";
 import { createHeartbeatJob } from "./_core/heartbeat";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router } from "./_core/trpc";
-import { addAlertHistory, addPermanentWatch, closeTrade, getAlertRule, getRadarSettings, getTelegramSettings, listAlertHistory, listPermanentWatchlist, listProviderHealth, listRadar, saveAlertRule, saveTelegramSettings, setRadarScheduleTaskUid, setTelegramScheduleTaskUid, trackTrade, updateTrailingSettings } from "./db";
+import { addAlertHistory, addPermanentWatch, closeTrade, getAlertRule, getMarketSafetySettings, getRadarSettings, getTelegramSettings, listAlertHistory, listPermanentWatchlist, listProviderFailureLog, listProviderHealth, listRadar, saveAlertRule, saveMarketSafetySettings, saveTelegramSettings, setRadarScheduleTaskUid, setTelegramScheduleTaskUid, trackTrade, updateTrailingSettings } from "./db";
 import { getMarketData } from "./marketData";
 import { scanRadar, scanAndNotifyRadar } from "./radar";
 import { sendTelegramMessage, telegramConfigured } from "./telegram";
@@ -19,6 +19,7 @@ export const appRouter = router({
   auth: router({ me: publicProcedure.query((opts) => opts.ctx.user), logout: publicProcedure.mutation(({ ctx }) => { const cookieOptions = getSessionCookieOptions(ctx.req); ctx.res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 }); return { success: true } as const; }) }),
   market: router({ quote: publicProcedure.input(z.object({ symbol: symbolSchema })).query(async ({ input }) => getMarketData(input.symbol)) }),
   health: router({ providers: publicProcedure.query(() => listProviderHealth()) }),
+  safety: router({ settings: publicProcedure.query(() => getMarketSafetySettings()), failures: publicProcedure.input(z.object({ limit: z.number().int().min(1).max(200).default(50) }).nullish()).query(({ input }) => listProviderFailureLog(input?.limit ?? 50)), save: publicProcedure.input(z.object({ gapThresholdPercent: priceSchema, newsWindowHours: z.number().int().min(0).max(168), sessionGuardEnabled: z.boolean(), newsFailClosed: z.boolean() })).mutation(({ input }) => saveMarketSafetySettings({ gapThresholdPercent: input.gapThresholdPercent, newsWindowHours: input.newsWindowHours, sessionGuardEnabled: input.sessionGuardEnabled ? 1 : 0, newsFailClosed: input.newsFailClosed ? 1 : 0 })) }),
   alerts: router({
     rule: publicProcedure.input(z.object({ symbol: symbolSchema })).query(async ({ input }) => getAlertRule(input.symbol)),
     saveRule: publicProcedure.input(alertInput).mutation(async ({ input }) => saveAlertRule(input)),

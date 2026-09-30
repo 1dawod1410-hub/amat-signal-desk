@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { calculateAtr, detectGapRisk, passesAtrFilter, shouldBlockForNews } from "./technicalFilters";
+import { calculateAtr, detectGapRisk, isRegularUsMarketSession, passesAtrFilter, shouldBlockForNews } from "./technicalFilters";
 
 describe("technical safety filters", () => {
   it("calculates a true-range ATR", () => {
@@ -24,5 +24,11 @@ describe("technical safety filters", () => {
     const now = Date.parse("2026-09-30T12:00:00Z");
     expect(shouldBlockForNews({ now, articleTimestamps: [now - 2 * 60 * 60 * 1000] }).blocked).toBe(true);
     expect(shouldBlockForNews({ now, articleTimestamps: [now - 25 * 60 * 60 * 1000] }).blocked).toBe(false);
+  });
+
+  it("allows alerts only during the regular New York session", () => {
+    expect(isRegularUsMarketSession(new Date("2026-09-30T14:00:00Z"))).toBe(true);
+    expect(isRegularUsMarketSession(new Date("2026-09-30T20:00:00Z"))).toBe(false);
+    expect(isRegularUsMarketSession(new Date("2026-10-03T14:00:00Z"))).toBe(false);
   });
 });

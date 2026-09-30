@@ -1,4 +1,4 @@
-import { getDb, recordProviderHealth } from "./db";
+import { recordProviderHealth } from "./db";
 import { shouldBlockForNews, type NewsRisk } from "./technicalFilters";
 
 const FINNHUB_BASE = "https://finnhub.io/api/v1";
@@ -26,7 +26,7 @@ export async function checkProviderHealth(provider: "Yahoo Finance" | "Finnhub")
   }
 }
 
-export async function getCompanyNewsRisk(symbol: string, now = Date.now()): Promise<NewsRisk> {
+export async function getCompanyNewsRisk(symbol: string, now = Date.now(), options?: { windowHours?: number; failClosed?: boolean }): Promise<NewsRisk> {
   const token = process.env.FINNHUB_API_KEY;
   if (!token) return { blocked: false, reason: null, articleCount: 0, checkedAt: now };
   const end = new Date(now); const start = new Date(now - 48 * 60 * 60 * 1000);
@@ -37,10 +37,9 @@ export async function getCompanyNewsRisk(symbol: string, now = Date.now()): Prom
     if (!response.ok) throw new Error(`Finnhub news ${response.status}`);
     const rows = await response.json() as Array<{ datetime?: number }>;
     const timestamps = rows.map((row) => Number(row.datetime) * 1000).filter(Number.isFinite);
-    return shouldBlockForNews({ articleTimestamps: timestamps, now, windowHours: 24 });
+    return shouldBlockForNews({ articleTimestamps: timestamps, now, windowHours: options?.windowHours ?? 24 });
   } catch {
-    // News failure must not manufacture a block; provider health records the outage.
-    return { blocked: false, reason: null, articleCount: 0, checkedAt: now };
+    return { blocked: Boolean(options?.failClosed), reason: options?.failClosed ? "News source unavailable; fail-closed protection" : null, articleCount: 0, checkedAt: now };
   }
 }
 

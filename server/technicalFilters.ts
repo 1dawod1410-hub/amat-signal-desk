@@ -3,6 +3,13 @@ export type CandleLike = { open: number; high: number; low: number; close: numbe
 export type AtrResult = { atr: number; trueRanges: number[] };
 export type NewsRisk = { blocked: boolean; reason: string | null; articleCount: number; checkedAt: number };
 
+export function isRegularUsMarketSession(now = new Date()): boolean {
+  const parts = new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", weekday: "short", hour: "2-digit", minute: "2-digit", hour12: false }).formatToParts(now).reduce<Record<string, string>>((out, part) => { out[part.type] = part.value; return out; }, {});
+  if (["Sat", "Sun"].includes(parts.weekday)) return false;
+  const minutes = Number(parts.hour) * 60 + Number(parts.minute);
+  return minutes >= 570 && minutes < 960;
+}
+
 export function calculateAtr(candles: CandleLike[], period = 14): AtrResult | null {
   if (period <= 0 || candles.length < period + 1) return null;
   const trueRanges: number[] = [];

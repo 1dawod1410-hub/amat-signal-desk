@@ -1,7 +1,8 @@
-import { replaceRadar, listRadar, getRadarSettings, updateTrackedPrices, listAlertRules, addAlertHistory, hasRecentAlert, getTelegramSettings } from "./db";
+import { replaceRadar, listRadar, getRadarSettings, getMarketSafetySettings, updateTrackedPrices, listAlertRules, addAlertHistory, hasRecentAlert, getTelegramSettings } from "./db";
 import { fetchHourlyWithFallback, aggregateHourlyTo4H, findConfirmedDemandZone } from "./candleZones";
 import { sendTelegramMessage } from "./telegram";
 import { detectGapRisk } from "./technicalFilters";
+import { isRegularUsMarketSession } from "./technicalFilters";
 
 export const RADAR_UNIVERSE = ["AAPL","MSFT","NVDA","AMZN","META","GOOGL","AVGO","TSLA","AMD","NFLX","MU","AMAT","QCOM","INTC","LRCX","KLAC","CRM","ORCL","PLTR","SMCI","COIN","MSTR","MARA","CRWD","PANW","SOFI","UBER","SHOP","ARM","MRVL"] as const;
 const CHART_URL = "https://query1.finance.yahoo.com/v8/finance/chart";
@@ -32,6 +33,8 @@ export async function scanRadar() {
 }
 
 export async function scanAndNotifyRadar() {
+  const safety = await getMarketSafetySettings();
+  if (safety.sessionGuardEnabled && !isRegularUsMarketSession()) return { count: 0, top: [], skipped: "Outside regular US market session" };
   const rows = await scanRadar();
   const telegram = await getTelegramSettings();
   for (const rule of await listAlertRules()) if (rule.trackTrade && rule.entryPrice) { const quote = rows.find((row) => row.symbol === rule.symbol); if (quote) { const trailing = await updateTrackedPrices(rule.symbol, Number(quote.price)); if (trailing.promoted && telegram?.enabled && telegram.chatId && process.env.TELEGRAM_BOT_TOKEN && !(await hasRecentAlert(rule.symbol, "trailingStop", 120))) { const stop = Number(trailing.trailingStop); await sendTelegramMessage(`Signal Desk\n${rule.symbol} · Trailing Stop مفعّل\nالهدف الأول تحقق عند $${Number(quote.price).toFixed(2)}\nالوقف الجديد: $${stop.toFixed(2)}`, telegram.chatId); await addAlertHistory({ symbol: rule.symbol, alertType: "trailingStop", price: Number(quote.price).toFixed(2), rangeLabel: `وقف متحرك $${stop.toFixed(2)}`, provider: quote.provider, delivery: "telegram" }); } } }

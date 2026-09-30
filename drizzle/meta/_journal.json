@@ -71,6 +71,13 @@
       "when": 1790721242768,
       "tag": "0009_fearless_caretaker",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "5",
+      "when": 1790786542597,
+      "tag": "0010_awesome_bedlam",
+      "breakpoints": true
     }
   ]
 }

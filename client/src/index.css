@@ -158,6 +158,12 @@ h1 span { color: #81918f; font-size: 11px; letter-spacing: .1em; vertical-align:
 .provider-health-row strong { display: block; color: #e2eeea; font-size: 12px; }
 .provider-health-row small { display: block; color: #71827e; font-size: 9px; margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 42vw; }
 .provider-health-row b { grid-column: 1 / -1; color: #91a49e; font-family: "Space Grotesk", sans-serif; font-size: 10px; direction: ltr; }
+.autonomy-settings { border-top: 1px solid rgba(255,255,255,.07); margin-top: 16px; padding-top: 15px; }
+.autonomy-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; align-items: end; margin-top: 10px; }
+.autonomy-fields label { display: grid; gap: 5px; color: #82938f; font-size: 10px; }
+.autonomy-fields input:not([type="checkbox"]) { width: 100%; border: 1px solid rgba(255,255,255,.09); border-radius: 8px; background: rgba(255,255,255,.035); color: #e4efeb; padding: 9px 10px; font-family: "Space Grotesk", sans-serif; direction: ltr; }
+.autonomy-fields .toggle-line { display: flex; align-items: center; gap: 7px; min-height: 35px; }
+.autonomy-fields button { min-height: 35px; }
 .financial-metrics { gap: 26px; margin-top: 20px; }
 .financial-metrics > div { display: grid; gap: 4px; }
 .financial-metrics span { color: #72837f; font-size: 10px; }
@@ -186,6 +192,7 @@ h1 span { color: #81918f; font-size: 11px; letter-spacing: .1em; vertical-align:
   .topbar { min-height: 66px; }
   .topbar-actions .live-dot { display: none; }
   .provider-health-grid { grid-template-columns: 1fr; }
+  .autonomy-fields { grid-template-columns: 1fr; }
   .hero-grid { padding-top: 38px; padding-bottom: 32px; }
   .hero-description { font-size: 13px; }
   .price-card { padding: 18px; }
