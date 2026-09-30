@@ -151,6 +151,13 @@ h1 span { color: #81918f; font-size: 11px; letter-spacing: .1em; vertical-align:
 .risk-foot small { grid-column: 1 / -1; color: #667873; font-size: 10px; }
 .financial-panel { padding-block: 20px; }
 .health-score { color: #07110e; background: var(--primary); font-family: "Space Grotesk", sans-serif; font-weight: 700; font-size: 12px; padding: 6px 8px; border-radius: 7px; direction: ltr; }
+.health-risk { color: #fff3f0; background: #a94f4a; }
+.provider-health-panel { margin-top: 18px; padding-block: 18px; }
+.provider-health-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 14px; }
+.provider-health-row { display: grid; grid-template-columns: 1fr auto; gap: 5px 12px; align-items: center; padding: 12px 14px; border: 1px solid rgba(255,255,255,.07); border-radius: 11px; background: rgba(255,255,255,.02); }
+.provider-health-row strong { display: block; color: #e2eeea; font-size: 12px; }
+.provider-health-row small { display: block; color: #71827e; font-size: 9px; margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 42vw; }
+.provider-health-row b { grid-column: 1 / -1; color: #91a49e; font-family: "Space Grotesk", sans-serif; font-size: 10px; direction: ltr; }
 .financial-metrics { gap: 26px; margin-top: 20px; }
 .financial-metrics > div { display: grid; gap: 4px; }
 .financial-metrics span { color: #72837f; font-size: 10px; }
@@ -178,6 +185,7 @@ h1 span { color: #81918f; font-size: 11px; letter-spacing: .1em; vertical-align:
   .container { width: min(100% - 28px, 1180px); }
   .topbar { min-height: 66px; }
   .topbar-actions .live-dot { display: none; }
+  .provider-health-grid { grid-template-columns: 1fr; }
   .hero-grid { padding-top: 38px; padding-bottom: 32px; }
   .hero-description { font-size: 13px; }
   .price-card { padding: 18px; }

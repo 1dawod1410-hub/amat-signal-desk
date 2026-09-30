@@ -5,7 +5,7 @@ import { getSessionCookieOptions } from "./_core/cookies";
 import { createHeartbeatJob } from "./_core/heartbeat";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router } from "./_core/trpc";
-import { addAlertHistory, addPermanentWatch, closeTrade, getAlertRule, getRadarSettings, getTelegramSettings, listAlertHistory, listPermanentWatchlist, listRadar, saveAlertRule, saveTelegramSettings, setRadarScheduleTaskUid, setTelegramScheduleTaskUid, trackTrade, updateTrailingSettings } from "./db";
+import { addAlertHistory, addPermanentWatch, closeTrade, getAlertRule, getRadarSettings, getTelegramSettings, listAlertHistory, listPermanentWatchlist, listProviderHealth, listRadar, saveAlertRule, saveTelegramSettings, setRadarScheduleTaskUid, setTelegramScheduleTaskUid, trackTrade, updateTrailingSettings } from "./db";
 import { getMarketData } from "./marketData";
 import { scanRadar, scanAndNotifyRadar } from "./radar";
 import { sendTelegramMessage, telegramConfigured } from "./telegram";
@@ -18,6 +18,7 @@ export const appRouter = router({
   system: systemRouter,
   auth: router({ me: publicProcedure.query((opts) => opts.ctx.user), logout: publicProcedure.mutation(({ ctx }) => { const cookieOptions = getSessionCookieOptions(ctx.req); ctx.res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 }); return { success: true } as const; }) }),
   market: router({ quote: publicProcedure.input(z.object({ symbol: symbolSchema })).query(async ({ input }) => getMarketData(input.symbol)) }),
+  health: router({ providers: publicProcedure.query(() => listProviderHealth()) }),
   alerts: router({
     rule: publicProcedure.input(z.object({ symbol: symbolSchema })).query(async ({ input }) => getAlertRule(input.symbol)),
     saveRule: publicProcedure.input(alertInput).mutation(async ({ input }) => saveAlertRule(input)),

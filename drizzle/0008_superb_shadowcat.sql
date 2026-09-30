@@ -1,0 +1,1 @@
+ALTER TABLE `radar_opportunities` MODIFY COLUMN `atr` decimal(12,4) NOT NULL DEFAULT '0';

@@ -1,6 +1,8 @@
 const YAHOO_CHART = "https://query1.finance.yahoo.com/v8/finance/chart";
 const YAHOO_TIMESERIES = "https://query1.finance.yahoo.com/ws/fundamentals-timeseries/v1/finance/timeseries";
 const FINNHUB_BASE = "https://finnhub.io/api/v1";
+import { detectGapRisk } from "./technicalFilters";
+import { recordProviderHealth } from "./db";
 
 type YahooNumber = { raw?: number };
 type YahooSeriesPoint = { asOfDate?: string; reportedValue?: YahooNumber };
@@ -14,7 +16,7 @@ export type MarketData = {
   currency: string;
   provider: "Yahoo Finance" | "Finnhub";
   fallbackUsed: boolean;
-  quote: { price: number; previousClose: number; change: number; percent: number; marketTime: number };
+  quote: { price: number; previousClose: number; currentOpen: number; gapPercent: number; gapBlocked: boolean; change: number; percent: number; marketTime: number };
   fundamentals: {
     quarter: string | null;
     revenue: number | null;
@@ -84,10 +86,11 @@ async function getYahooData(symbol: string): Promise<MarketData> {
   const price = Number(meta?.regularMarketPrice ?? meta?.postMarketPrice ?? meta?.previousClose);
   const previousClose = Number(meta?.previousClose ?? meta?.chartPreviousClose);
   if (!Number.isFinite(price) || !Number.isFinite(previousClose)) throw new Error(`No live quote available for ${symbol}`);
+  const gap = detectGapRisk(previousClose, Number(meta?.regularMarketOpen ?? price));
   const fundamentalsData = buildFundamentals(getSeries(fundamentals, "quarterlyTotalRevenue"), getSeries(fundamentals, "quarterlyNetIncome"), getSeries(fundamentals, "quarterlyGrossProfit"), "Yahoo Finance fundamentals-timeseries");
   return {
     symbol, companyName: meta?.longName ?? meta?.shortName ?? symbol, exchange: meta?.fullExchangeName ?? meta?.exchangeName ?? "NASDAQ", currency: meta?.currency ?? "USD", provider: "Yahoo Finance", fallbackUsed: false,
-    quote: { price, previousClose, change: price - previousClose, percent: ((price - previousClose) / previousClose) * 100, marketTime: Number(meta?.regularMarketTime ?? Math.floor(Date.now() / 1000)) },
+    quote: { price, previousClose, currentOpen: Number(meta?.regularMarketOpen ?? price), gapPercent: gap.gapPercent, gapBlocked: gap.blocked, change: price - previousClose, percent: ((price - previousClose) / previousClose) * 100, marketTime: Number(meta?.regularMarketTime ?? Math.floor(Date.now() / 1000)) },
     fundamentals: fundamentalsData,
     fetchedAt: Date.now(),
   };
@@ -111,13 +114,14 @@ async function getFinnhubData(symbol: string): Promise<MarketData> {
   const price = Number(quote?.c);
   const previousClose = Number(quote?.pc);
   if (!Number.isFinite(price) || !Number.isFinite(previousClose)) throw new Error(`Finnhub has no quote for ${symbol}`);
+  const gap = detectGapRisk(previousClose, Number(quote?.o ?? price));
   const reports = (statements?.data ?? []) as Array<{ endDate?: string; report?: { ic?: FinnhubMetric[]; bs?: FinnhubMetric[] } }>;
   const revenueSeries = reports.map((item) => findFinnhubValue(item.report?.ic, ["revenuefromcontractwithcustomer", "revenues", "revenue"])).filter(Boolean).map((item) => item as SeriesPoint).sort((a, b) => a.date.localeCompare(b.date));
   const netIncomeSeries = reports.map((item) => findFinnhubValue(item.report?.ic, ["netincomeloss", "netincome"])).filter(Boolean).map((item) => item as SeriesPoint).sort((a, b) => a.date.localeCompare(b.date));
   const grossProfitSeries = reports.map((item) => findFinnhubValue(item.report?.ic, ["grossprofit"])).filter(Boolean).map((item) => item as SeriesPoint).sort((a, b) => a.date.localeCompare(b.date));
   return {
     symbol, companyName: profile?.name ?? symbol, exchange: profile?.exchange ?? "NASDAQ", currency: profile?.currency ?? "USD", provider: "Finnhub", fallbackUsed: true,
-    quote: { price, previousClose, change: Number(quote?.d ?? price - previousClose), percent: Number(quote?.dp ?? ((price - previousClose) / previousClose) * 100), marketTime: Number(quote?.t ?? Math.floor(Date.now() / 1000)) },
+    quote: { price, previousClose, currentOpen: Number(quote?.o ?? price), gapPercent: gap.gapPercent, gapBlocked: gap.blocked, change: Number(quote?.d ?? price - previousClose), percent: Number(quote?.dp ?? ((price - previousClose) / previousClose) * 100), marketTime: Number(quote?.t ?? Math.floor(Date.now() / 1000)) },
     fundamentals: buildFundamentals(revenueSeries, netIncomeSeries, grossProfitSeries, "Finnhub financials-reported"),
     fetchedAt: Date.now(),
   };
@@ -125,12 +129,15 @@ async function getFinnhubData(symbol: string): Promise<MarketData> {
 
 export async function getMarketData(inputSymbol: string): Promise<MarketData> {
   const symbol = cleanSymbol(inputSymbol);
+  const started = Date.now();
   try {
-    return await getYahooData(symbol);
+    const data = await getYahooData(symbol); await recordProviderHealth({ provider: "Yahoo Finance", ok: true, latencyMs: Date.now() - started }); return data;
   } catch (yahooError) {
+    await recordProviderHealth({ provider: "Yahoo Finance", ok: false, latencyMs: Date.now() - started, error: yahooError instanceof Error ? yahooError.message : String(yahooError) });
     try {
-      return await getFinnhubData(symbol);
+      const fallbackStarted = Date.now(); const data = await getFinnhubData(symbol); await recordProviderHealth({ provider: "Finnhub", ok: true, latencyMs: Date.now() - fallbackStarted }); return data;
     } catch (finnhubError) {
+      await recordProviderHealth({ provider: "Finnhub", ok: false, latencyMs: Date.now() - started, error: finnhubError instanceof Error ? finnhubError.message : String(finnhubError) });
       const yahooMessage = yahooError instanceof Error ? yahooError.message : "Yahoo unavailable";
       const finnhubMessage = finnhubError instanceof Error ? finnhubError.message : "Finnhub unavailable";
       throw new Error(`Market data unavailable. Yahoo: ${yahooMessage}. Finnhub: ${finnhubMessage}.`);

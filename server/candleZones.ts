@@ -1,6 +1,8 @@
 export type HourlyBar = { timestamp: Date; open: number; high: number; low: number; close: number; volume: number };
 export type Candle4H = HourlyBar & { bars: number; bodyLow: number; bodyHigh: number; body: number; range: number; lowerWick: number; upperWick: number; bodyRatio: number; volumeMedian20: number | null };
-export type DemandZone = { symbol: string; demandLow: number; demandHigh: number; sourceCandleTime: Date; confirmationClose: number; status: "confirmed" | "unconfirmed"; breakType: "none" | "wick_break" | "confirmed_close_break"; provider: string };
+import { calculateAtr, passesAtrFilter } from "./technicalFilters";
+
+export type DemandZone = { symbol: string; demandLow: number; demandHigh: number; atr: number; sourceCandleTime: Date; confirmationClose: number; status: "confirmed" | "unconfirmed"; breakType: "none" | "wick_break" | "confirmed_close_break"; provider: string };
 
 const NY_TIME = "America/New_York";
 const FINNHUB_CANDLES = "https://finnhub.io/api/v1/stock/candle";
@@ -68,7 +70,11 @@ export function findConfirmedDemandZone(candles: Candle4H[], symbol: string, loo
     const confirmation = data.slice(i + 1, i + 4).find((candle) => candle.close > candidate.bodyHigh);
     if (!confirmation) continue;
     const cluster = data.slice(Math.max(0, i - 2), i + 1);
-    const zone: DemandZone = { symbol: symbol.toUpperCase(), demandLow: Math.min(...cluster.map((candle) => candle.low)), demandHigh: Math.max(...cluster.map((candle) => candle.bodyHigh)), sourceCandleTime: candidate.timestamp, confirmationClose: confirmation.close, status: "confirmed", breakType: "none", provider: "Finnhub 60m aggregated to 4H" };
+    const demandLow = Math.min(...cluster.map((candle) => candle.low));
+    const demandHigh = Math.max(...cluster.map((candle) => candle.bodyHigh));
+    const atr = calculateAtr(data, 14)?.atr ?? 0;
+    if (atr > 0 && !passesAtrFilter({ demandLow, demandHigh, atr })) continue;
+    const zone: DemandZone = { symbol: symbol.toUpperCase(), demandLow, demandHigh, atr, sourceCandleTime: candidate.timestamp, confirmationClose: confirmation.close, status: "confirmed", breakType: "none", provider: "Finnhub 60m aggregated to 4H" };
     const latest = data[data.length - 1];
     zone.breakType = classifyDemandBreak(zone, latest.low, latest.close);
     if (zone.breakType === "confirmed_close_break") return null;

@@ -9,9 +9,10 @@ import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
 import { sdk } from "./sdk";
-import { runAlertSweep } from "../telegram";
+import { runAlertSweep, sendTelegramMessage } from "../telegram";
 import { scanAndNotifyRadar } from "../radar";
-import { getRadarSettingsByTaskUid } from "../db";
+import { getRadarSettingsByTaskUid, getTelegramSettings, listProviderHealth, markProviderHealthNotified } from "../db";
+import { checkAllProviders } from "../providerHealth";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -52,7 +53,16 @@ async function startServer() {
     try {
       const user = await sdk.authenticateRequest(req);
       if (!user.isCron || !user.taskUid) return res.status(403).json({ error: "cron-only" });
-      return res.json({ ok: true, ...(await runAlertSweep()) });
+      const result = await runAlertSweep();
+      await checkAllProviders();
+      const settings = await getTelegramSettings();
+      for (const health of await listProviderHealth()) {
+        const due = health.failureCount >= 3 && (!health.lastNotifiedAt || Date.now() - health.lastNotifiedAt.getTime() > 6 * 60 * 60 * 1000);
+        if (due && settings?.enabled && settings.chatId && process.env.TELEGRAM_BOT_TOKEN) {
+          try { await sendTelegramMessage(`Signal Desk\n⚠️ Provider health warning\n${health.provider} failed ${health.failureCount} consecutive checks.\nLast error: ${health.lastError ?? "unknown"}`, settings.chatId); await markProviderHealthNotified(health.id); } catch { /* retry on a later heartbeat */ }
+        }
+      }
+      return res.json({ ok: true, ...result });
     } catch (error) {
       return res.status(500).json({ error: error instanceof Error ? error.message : String(error), timestamp: new Date().toISOString() });
     }
