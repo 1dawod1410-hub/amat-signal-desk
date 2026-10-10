@@ -1,6 +1,6 @@
 export type HourlyBar = { timestamp: Date; open: number; high: number; low: number; close: number; volume: number };
 export type Candle4H = HourlyBar & { bars: number; bodyLow: number; bodyHigh: number; body: number; range: number; lowerWick: number; upperWick: number; bodyRatio: number; volumeMedian20: number | null };
-import { calculateAtr, passesAtrFilter } from "./technicalFilters";
+import { calculateAtr } from "./technicalFilters";
 
 export type DemandZone = { symbol: string; demandLow: number; demandHigh: number; atr: number; sourceCandleTime: Date; confirmationClose: number; status: "confirmed" | "unconfirmed"; breakType: "none" | "wick_break" | "confirmed_close_break"; provider: string };
 
@@ -64,23 +64,21 @@ export function isMagnetOrAccumulation(candle: Candle4H) { return candle.range >
 
 export function findConfirmedDemandZone(candles: Candle4H[], symbol: string, lookback = 30): DemandZone | null {
   const data = candles.slice(-lookback);
-  // Only the most recent confirmed demand candle is eligible. Never build a
-  // zone from neighboring candles or historical lows/highs.
+  // The 4H chart's demand source is the latest bearish candle immediately
+  // preceding a confirmed upward move. Never fall back to an older low.
   for (let i = data.length - 4; i >= 0; i -= 1) {
     const candidate = data[i];
-    if (!isMagnetOrAccumulation(candidate)) continue;
-    const confirmation = data.slice(i + 1, i + 4).find((candle) => candle.close > candidate.bodyHigh);
-    if (!confirmation) continue;
-    if (data.slice(i + 1).some((candle) => candle.close < candidate.low)) continue;
+    if (candidate.close >= candidate.open) continue;
+    const nextConfirmation = data.slice(i + 1, i + 4).find((candle) => candle.close > candidate.bodyHigh);
+    if (!nextConfirmation || data.slice(i + 1).some((candle) => candle.close < candidate.low)) continue;
 
     const demandLow = candidate.low;
     const demandHigh = candidate.bodyHigh;
     const atr = calculateAtr(data, 14)?.atr ?? 0;
-    if (atr > 0 && !passesAtrFilter({ demandLow, demandHigh, atr })) continue;
-    const zone: DemandZone = { symbol: symbol.toUpperCase(), demandLow, demandHigh, atr, sourceCandleTime: candidate.timestamp, confirmationClose: confirmation.close, status: "confirmed", breakType: "none", provider: "Finnhub 60m aggregated to 4H" };
+    const zone: DemandZone = { symbol: symbol.toUpperCase(), demandLow, demandHigh, atr, sourceCandleTime: candidate.timestamp, confirmationClose: nextConfirmation.close, status: "confirmed", breakType: "none", provider: "4H regular-session candles" };
     const latest = data[data.length - 1];
     zone.breakType = classifyDemandBreak(zone, latest.low, latest.close);
-    if (zone.breakType === "confirmed_close_break") return null;
+    if (zone.breakType === "confirmed_close_break") continue;
     return zone;
   }
   return null;

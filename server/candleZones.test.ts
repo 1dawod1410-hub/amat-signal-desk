@@ -33,7 +33,7 @@ describe("4H candle demand zones", () => {
     const candles = addCandleFeatures([
       candle("2026-09-25T13:30:00Z", 98, 101, 95, 100),
       candle("2026-09-26T13:30:00Z", 99, 102, 96, 101),
-      candle("2026-09-27T13:30:00Z", 100, 104, 90, 102),
+      candle("2026-09-27T13:30:00Z", 104, 106, 90, 100),
       candle("2026-09-28T13:30:00Z", 102, 106, 101, 105),
       candle("2026-09-29T13:30:00Z", 105, 107, 103, 106),
       candle("2026-09-30T13:30:00Z", 106, 108, 104, 107),
@@ -41,19 +41,19 @@ describe("4H candle demand zones", () => {
     const zone = findConfirmedDemandZone(candles, "AMAT");
     expect(zone?.status).toBe("confirmed");
     expect(zone?.demandLow).toBe(90);
-    expect(zone?.demandHigh).toBe(102);
+    expect(zone?.demandHigh).toBe(104);
     expect(zone?.confirmationClose).toBe(105);
   });
 
-  it("uses only the latest active demand candle without expanding its boundaries", () => {
+  it("uses only the latest active bearish demand candle without expanding its boundaries", () => {
     const candles = addCandleFeatures([
       candle("2026-09-21T13:30:00Z", 98, 103, 94, 100),
       candle("2026-09-22T13:30:00Z", 100, 104, 95, 101),
-      candle("2026-09-23T13:30:00Z", 100, 105, 90, 102),
+      candle("2026-09-23T13:30:00Z", 105, 105, 90, 102),
       candle("2026-09-24T13:30:00Z", 102, 108, 101, 106),
       candle("2026-09-25T13:30:00Z", 106, 109, 104, 107),
       candle("2026-09-26T13:30:00Z", 107, 111, 106, 110),
-      candle("2026-09-29T13:30:00Z", 109, 113, 96, 111),
+      candle("2026-09-29T13:30:00Z", 113, 113, 96, 111),
       candle("2026-09-30T13:30:00Z", 111, 116, 110, 115),
       candle("2026-10-01T13:30:00Z", 115, 118, 112, 117),
       candle("2026-10-02T13:30:00Z", 117, 120, 116, 119),
@@ -62,11 +62,11 @@ describe("4H candle demand zones", () => {
     const zone = findConfirmedDemandZone(candles, "AAPL");
     expect(zone?.sourceCandleTime).toEqual(new Date("2026-09-29T13:30:00Z"));
     expect(zone?.demandLow).toBe(96);
-    expect(zone?.demandHigh).toBe(111);
+    expect(zone?.demandHigh).toBe(113);
   });
 
   it("distinguishes a wick sweep from a confirmed closing break", () => {
-    const zone = { symbol: "AMAT", demandLow: 90, demandHigh: 102, sourceCandleTime: new Date(), confirmationClose: 105, status: "confirmed" as const, breakType: "none" as const, provider: "test" };
+    const zone = { symbol: "AMAT", demandLow: 90, demandHigh: 104, sourceCandleTime: new Date(), confirmationClose: 105, status: "confirmed" as const, breakType: "none" as const, provider: "test" };
     expect(classifyDemandBreak(zone, 89, 91)).toBe("wick_break");
     expect(classifyDemandBreak(zone, 89, 89.5)).toBe("confirmed_close_break");
     expect(classifyDemandBreak(zone, 92, 93)).toBe("none");
@@ -76,7 +76,7 @@ describe("4H candle demand zones", () => {
     const candles = addCandleFeatures([
       candle("2026-09-25T13:30:00Z", 98, 101, 95, 100),
       candle("2026-09-26T13:30:00Z", 99, 102, 96, 101),
-      candle("2026-09-27T13:30:00Z", 100, 104, 90, 102),
+      candle("2026-09-27T13:30:00Z", 104, 106, 90, 100),
       candle("2026-09-28T13:30:00Z", 102, 106, 101, 105),
       candle("2026-09-29T13:30:00Z", 105, 107, 103, 106),
       candle("2026-09-30T13:30:00Z", 89, 93, 87, 88),
@@ -88,7 +88,7 @@ describe("4H candle demand zones", () => {
     const candles = addCandleFeatures([
       candle("2026-09-25T13:30:00Z", 98, 101, 95, 100),
       candle("2026-09-26T13:30:00Z", 99, 102, 96, 101),
-      candle("2026-09-27T13:30:00Z", 100, 104, 90, 102),
+      candle("2026-09-27T13:30:00Z", 104, 106, 90, 100),
       candle("2026-09-28T13:30:00Z", 102, 106, 101, 105),
       candle("2026-09-29T13:30:00Z", 105, 107, 103, 106),
       candle("2026-09-30T13:30:00Z", 92, 103, 89, 94),
