@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatDemandAlert, isInsideDemand } from "./telegram";
+import { DEFAULT_MONITORED_SYMBOLS, formatDemandAlert, isInsideDemand, mergeMonitoredSymbols } from "./telegram";
 import { isWithinTwoTradingSessions } from "./earnings";
 
 describe("individual demand alerts", () => {
@@ -28,5 +28,10 @@ describe("individual demand alerts", () => {
   it("treats the next two weekdays as the warning window", () => {
     expect(isWithinTwoTradingSessions(new Date("2026-09-28T12:00:00Z"), new Date("2026-09-30T12:00:00Z"))).toBe(true);
     expect(isWithinTwoTradingSessions(new Date("2026-09-28T12:00:00Z"), new Date("2026-10-01T12:00:00Z"))).toBe(false);
+  });
+
+  it("covers every current watchlist symbol plus saved rules without duplicates", () => {
+    const symbols = mergeMonitoredSymbols(["TSLA", "AAPL", "nvda"], ["AMAT", "PL"]);
+    expect(symbols).toEqual([...DEFAULT_MONITORED_SYMBOLS, "AAPL"]);
   });
 });
