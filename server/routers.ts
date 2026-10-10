@@ -21,7 +21,7 @@ export const appRouter = router({
   health: router({ providers: publicProcedure.query(() => listProviderHealth()) }),
   safety: router({ settings: publicProcedure.query(() => getMarketSafetySettings()), failures: publicProcedure.input(z.object({ limit: z.number().int().min(1).max(200).default(50) }).nullish()).query(({ input }) => listProviderFailureLog(input?.limit ?? 50)), save: publicProcedure.input(z.object({ gapThresholdPercent: priceSchema, newsWindowHours: z.number().int().min(0).max(168), sessionGuardEnabled: z.boolean(), newsFailClosed: z.boolean() })).mutation(({ input }) => saveMarketSafetySettings({ gapThresholdPercent: input.gapThresholdPercent, newsWindowHours: input.newsWindowHours, sessionGuardEnabled: input.sessionGuardEnabled ? 1 : 0, newsFailClosed: input.newsFailClosed ? 1 : 0 })) }),
   alerts: router({
-    rule: publicProcedure.input(z.object({ symbol: symbolSchema })).query(async ({ input }) => getAlertRule(input.symbol)),
+    rule: publicProcedure.input(z.object({ symbol: symbolSchema })).query(async ({ input }) => (await getAlertRule(input.symbol)) ?? null),
     saveRule: publicProcedure.input(alertInput).mutation(async ({ input }) => saveAlertRule(input)),
     history: publicProcedure.input(z.object({ limit: z.number().int().min(1).max(100).default(50) }).optional()).query(async ({ input }) => listAlertHistory(input?.limit ?? 50)),
     recordLocal: publicProcedure.input(z.object({ symbol: z.string().trim().toUpperCase().max(10), alertType: z.enum(["demand", "target1", "target2", "target3", "stopLoss", "trailingStop"]), price: z.string(), rangeLabel: z.string(), provider: z.string() })).mutation(async ({ input }) => { await addAlertHistory({ ...input, delivery: "browser" }); return { success: true } as const; }),
