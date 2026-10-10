@@ -32,6 +32,7 @@ describe("individual demand alerts", () => {
 
   it("covers every current watchlist symbol plus saved rules without duplicates", () => {
     const symbols = mergeMonitoredSymbols(["TSLA", "AAPL", "nvda"], ["AMAT", "PL"]);
-    expect(symbols).toEqual([...DEFAULT_MONITORED_SYMBOLS, "AAPL"]);
+    expect(symbols).toEqual([...DEFAULT_MONITORED_SYMBOLS, "PL"]);
+    expect(symbols).toHaveLength(31);
   });
 });

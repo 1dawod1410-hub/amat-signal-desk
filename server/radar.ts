@@ -3,8 +3,9 @@ import { fetchHourlyWithFallback, aggregateHourlyTo4H, findConfirmedDemandZone }
 import { sendTelegramMessage } from "./telegram";
 import { detectGapRisk } from "./technicalFilters";
 import { isRegularUsMarketSession } from "./technicalFilters";
+import { MARKET_UNIVERSE } from "./marketUniverse";
 
-export const RADAR_UNIVERSE = ["AAPL","MSFT","NVDA","AMZN","META","GOOGL","AVGO","TSLA","AMD","NFLX","MU","AMAT","QCOM","INTC","LRCX","KLAC","CRM","ORCL","PLTR","SMCI","COIN","MSTR","MARA","CRWD","PANW","SOFI","UBER","SHOP","ARM","MRVL"] as const;
+export const RADAR_UNIVERSE = MARKET_UNIVERSE;
 const CHART_URL = "https://query1.finance.yahoo.com/v8/finance/chart";
 
 type RadarQuote = { symbol: string; price: number; previousClose: number; currentOpen: number; gapPercent: number; gapBlocked: boolean; changePercent: number; volume: number; provider: string };
