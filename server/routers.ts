@@ -8,6 +8,7 @@ import { publicProcedure, router } from "./_core/trpc";
 import { addAlertHistory, addPermanentWatch, closeTrade, getAlertRule, getMarketSafetySettings, getRadarSettings, getTelegramSettings, listAlertHistory, listPermanentWatchlist, listProviderFailureLog, listProviderHealth, listRadar, saveAlertRule, saveMarketSafetySettings, saveTelegramSettings, setRadarScheduleTaskUid, setTelegramScheduleTaskUid, trackTrade, updateTrailingSettings } from "./db";
 import { getMarketData } from "./marketData";
 import { scanRadar, scanAndNotifyRadar } from "./radar";
+import { aggregateHourlyTo4H, fetchHourlyWithFallback, findConfirmedDemandZone } from "./candleZones";
 import { sendTelegramMessage, telegramConfigured } from "./telegram";
 
 const symbolSchema = z.string().trim().toUpperCase().regex(/^[A-Z][A-Z0-9.-]{0,9}$/);
@@ -17,7 +18,7 @@ const alertInput = z.object({ symbol: symbolSchema, demandLow: priceSchema, dema
 export const appRouter = router({
   system: systemRouter,
   auth: router({ me: publicProcedure.query((opts) => opts.ctx.user), logout: publicProcedure.mutation(({ ctx }) => { const cookieOptions = getSessionCookieOptions(ctx.req); ctx.res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 }); return { success: true } as const; }) }),
-  market: router({ quote: publicProcedure.input(z.object({ symbol: symbolSchema })).query(async ({ input }) => getMarketData(input.symbol)) }),
+  market: router({ quote: publicProcedure.input(z.object({ symbol: symbolSchema })).query(async ({ input }) => getMarketData(input.symbol)), demandZone: publicProcedure.input(z.object({ symbol: symbolSchema })).query(async ({ input }) => { const candles = await fetchHourlyWithFallback(input.symbol); return findConfirmedDemandZone(aggregateHourlyTo4H(candles.bars, new Date()), input.symbol) ?? null; }) }),
   health: router({ providers: publicProcedure.query(() => listProviderHealth()) }),
   safety: router({ settings: publicProcedure.query(() => getMarketSafetySettings()), failures: publicProcedure.input(z.object({ limit: z.number().int().min(1).max(200).default(50) }).nullish()).query(({ input }) => listProviderFailureLog(input?.limit ?? 50)), save: publicProcedure.input(z.object({ gapThresholdPercent: priceSchema, newsWindowHours: z.number().int().min(0).max(168), sessionGuardEnabled: z.boolean(), newsFailClosed: z.boolean() })).mutation(({ input }) => saveMarketSafetySettings({ gapThresholdPercent: input.gapThresholdPercent, newsWindowHours: input.newsWindowHours, sessionGuardEnabled: input.sessionGuardEnabled ? 1 : 0, newsFailClosed: input.newsFailClosed ? 1 : 0 })) }),
   alerts: router({
