@@ -7,8 +7,8 @@ export type DemandZone = { symbol: string; demandLow: number; demandHigh: number
 const NY_TIME = "America/New_York";
 const FINNHUB_CANDLES = "https://finnhub.io/api/v1/stock/candle";
 
-function toNewYorkParts(date: Date) { return new Intl.DateTimeFormat("en-US", { timeZone: NY_TIME, hour: "2-digit", minute: "2-digit", hour12: false }).formatToParts(date).reduce<Record<string, string>>((out, part) => { out[part.type] = part.value; return out; }, {}); }
-function isRegularSessionBar(date: Date) { const parts = toNewYorkParts(date); const minutes = Number(parts.hour) * 60 + Number(parts.minute); return minutes >= 570 && minutes < 960; }
+function toNewYorkParts(date: Date) { return new Intl.DateTimeFormat("en-US", { timeZone: NY_TIME, weekday: "short", hour: "2-digit", minute: "2-digit", hour12: false }).formatToParts(date).reduce<Record<string, string>>((out, part) => { out[part.type] = part.value; return out; }, {}); }
+function isRegularSessionBar(date: Date) { const parts = toNewYorkParts(date); if (["Sat", "Sun"].includes(parts.weekday)) return false; const minutes = Number(parts.hour) * 60 + Number(parts.minute); return minutes >= 570 && minutes < 960; }
 
 export async function fetchFinnhubHourly(symbol: string, lookbackDays = 30): Promise<HourlyBar[]> {
   const token = process.env.FINNHUB_API_KEY;
@@ -64,14 +64,17 @@ export function isMagnetOrAccumulation(candle: Candle4H) { return candle.range >
 
 export function findConfirmedDemandZone(candles: Candle4H[], symbol: string, lookback = 30): DemandZone | null {
   const data = candles.slice(-lookback);
+  // Only the most recent confirmed demand candle is eligible. Never build a
+  // zone from neighboring candles or historical lows/highs.
   for (let i = data.length - 4; i >= 0; i -= 1) {
     const candidate = data[i];
     if (!isMagnetOrAccumulation(candidate)) continue;
     const confirmation = data.slice(i + 1, i + 4).find((candle) => candle.close > candidate.bodyHigh);
     if (!confirmation) continue;
-    const cluster = data.slice(Math.max(0, i - 2), i + 1);
-    const demandLow = Math.min(...cluster.map((candle) => candle.low));
-    const demandHigh = Math.max(...cluster.map((candle) => candle.bodyHigh));
+    if (data.slice(i + 1).some((candle) => candle.close < candidate.low)) continue;
+
+    const demandLow = candidate.low;
+    const demandHigh = candidate.bodyHigh;
     const atr = calculateAtr(data, 14)?.atr ?? 0;
     if (atr > 0 && !passesAtrFilter({ demandLow, demandHigh, atr })) continue;
     const zone: DemandZone = { symbol: symbol.toUpperCase(), demandLow, demandHigh, atr, sourceCandleTime: candidate.timestamp, confirmationClose: confirmation.close, status: "confirmed", breakType: "none", provider: "Finnhub 60m aggregated to 4H" };
