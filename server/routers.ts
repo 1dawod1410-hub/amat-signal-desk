@@ -10,6 +10,7 @@ import { getMarketData } from "./marketData";
 import { scanRadar, scanAndNotifyRadar } from "./radar";
 import { aggregateHourlyTo4H, fetchHourlyWithFallback, findConfirmedDemandZone } from "./candleZones";
 import { sendTelegramMessage, telegramConfigured } from "./telegram";
+import { getResistanceAnalysis } from "./resistance";
 
 const symbolSchema = z.string().trim().toUpperCase().regex(/^[A-Z][A-Z0-9.-]{0,9}$/);
 const priceSchema = z.string().trim().regex(/^\d+(\.\d{1,4})?$/).refine((value) => Number(value) > 0, "Price must be positive");
@@ -18,14 +19,14 @@ const alertInput = z.object({ symbol: symbolSchema, demandLow: priceSchema, dema
 export const appRouter = router({
   system: systemRouter,
   auth: router({ me: publicProcedure.query((opts) => opts.ctx.user), logout: publicProcedure.mutation(({ ctx }) => { const cookieOptions = getSessionCookieOptions(ctx.req); ctx.res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 }); return { success: true } as const; }) }),
-  market: router({ quote: publicProcedure.input(z.object({ symbol: symbolSchema })).query(async ({ input }) => getMarketData(input.symbol)), demandZone: publicProcedure.input(z.object({ symbol: symbolSchema })).query(async ({ input }) => { const candles = await fetchHourlyWithFallback(input.symbol); return findConfirmedDemandZone(aggregateHourlyTo4H(candles.bars, new Date()), input.symbol) ?? null; }) }),
+  market: router({ quote: publicProcedure.input(z.object({ symbol: symbolSchema })).query(async ({ input }) => getMarketData(input.symbol)), demandZone: publicProcedure.input(z.object({ symbol: symbolSchema })).query(async ({ input }) => { const candles = await fetchHourlyWithFallback(input.symbol); return findConfirmedDemandZone(aggregateHourlyTo4H(candles.bars, new Date()), input.symbol) ?? null; }), resistances: publicProcedure.input(z.object({ symbol: symbolSchema, currentPrice: z.number().positive(), demandLow: z.number().positive(), demandHigh: z.number().positive(), stopLoss: z.number().positive() })).query(({ input }) => getResistanceAnalysis(input.symbol, input.currentPrice, input.demandLow, input.demandHigh, input.stopLoss)) }),
   health: router({ providers: publicProcedure.query(() => listProviderHealth()) }),
   safety: router({ settings: publicProcedure.query(() => getMarketSafetySettings()), failures: publicProcedure.input(z.object({ limit: z.number().int().min(1).max(200).default(50) }).nullish()).query(({ input }) => listProviderFailureLog(input?.limit ?? 50)), save: publicProcedure.input(z.object({ gapThresholdPercent: priceSchema, newsWindowHours: z.number().int().min(0).max(168), sessionGuardEnabled: z.boolean(), newsFailClosed: z.boolean() })).mutation(({ input }) => saveMarketSafetySettings({ gapThresholdPercent: input.gapThresholdPercent, newsWindowHours: input.newsWindowHours, sessionGuardEnabled: input.sessionGuardEnabled ? 1 : 0, newsFailClosed: input.newsFailClosed ? 1 : 0 })) }),
   alerts: router({
     rule: publicProcedure.input(z.object({ symbol: symbolSchema })).query(async ({ input }) => (await getAlertRule(input.symbol)) ?? null),
     saveRule: publicProcedure.input(alertInput).mutation(async ({ input }) => saveAlertRule(input)),
     history: publicProcedure.input(z.object({ limit: z.number().int().min(1).max(100).default(50) }).optional()).query(async ({ input }) => listAlertHistory(input?.limit ?? 50)),
-    recordLocal: publicProcedure.input(z.object({ symbol: z.string().trim().toUpperCase().max(10), alertType: z.enum(["demand", "target1", "target2", "target3", "stopLoss", "trailingStop"]), price: z.string(), rangeLabel: z.string(), provider: z.string() })).mutation(async ({ input }) => { await addAlertHistory({ ...input, delivery: "browser" }); return { success: true } as const; }),
+    recordLocal: publicProcedure.input(z.object({ symbol: z.string().trim().toUpperCase().max(10), alertType: z.enum(["demand", "target1", "target2", "target3", "stopLoss", "trailingStop"]), price: z.string(), rangeLabel: z.string(), provider: z.string(), resistanceJson: z.string().nullable().optional(), resistanceWarning: z.number().int().min(0).max(1).optional() })).mutation(async ({ input }) => { await addAlertHistory({ ...input, delivery: "browser" }); return { success: true } as const; }),
   }),
   trade: router({
     track: publicProcedure.input(z.object({ symbol: symbolSchema, active: z.boolean(), entryPrice: priceSchema.optional(), trailingPercent: priceSchema.optional() })).mutation(async ({ input }) => trackTrade(input.symbol, input.active, input.entryPrice, input.trailingPercent)),

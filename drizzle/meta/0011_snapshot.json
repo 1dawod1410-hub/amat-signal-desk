@@ -1,0 +1,1050 @@
+{
+  "version": "5",
+  "dialect": "mysql",
+  "id": "649dac49-7d24-48f0-9342-3beaff524098",
+  "prevId": "7bc73dca-19f6-4714-802c-32c7d7bdcd16",
+  "tables": {
+    "alert_history": {
+      "name": "alert_history",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "symbol": {
+          "name": "symbol",
+          "type": "varchar(10)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "alertType": {
+          "name": "alertType",
+          "type": "enum('demand','target1','target2','target3','stopLoss','trailingStop')",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "price": {
+          "name": "price",
+          "type": "varchar(32)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "rangeLabel": {
+          "name": "rangeLabel",
+          "type": "varchar(64)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "provider": {
+          "name": "provider",
+          "type": "varchar(64)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "delivery": {
+          "name": "delivery",
+          "type": "varchar(32)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "resistanceJson": {
+          "name": "resistanceJson",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "resistanceWarning": {
+          "name": "resistanceWarning",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "break5": {
+          "name": "break5",
+          "type": "varchar(64)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "break10": {
+          "name": "break10",
+          "type": "varchar(64)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "break20": {
+          "name": "break20",
+          "type": "varchar(64)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "createdAt": {
+          "name": "createdAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(now())"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "alert_history_id": {
+          "name": "alert_history_id",
+          "columns": [
+            "id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
+    "alert_rules": {
+      "name": "alert_rules",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "symbol": {
+          "name": "symbol",
+          "type": "varchar(10)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "demandLow": {
+          "name": "demandLow",
+          "type": "decimal(12,4)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "demandHigh": {
+          "name": "demandHigh",
+          "type": "decimal(12,4)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "target1Low": {
+          "name": "target1Low",
+          "type": "decimal(12,4)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "target1High": {
+          "name": "target1High",
+          "type": "decimal(12,4)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "target2Low": {
+          "name": "target2Low",
+          "type": "decimal(12,4)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "target2High": {
+          "name": "target2High",
+          "type": "decimal(12,4)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "stopLoss": {
+          "name": "stopLoss",
+          "type": "decimal(12,4)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "target3Low": {
+          "name": "target3Low",
+          "type": "decimal(12,4)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "target3High": {
+          "name": "target3High",
+          "type": "decimal(12,4)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "trackTrade": {
+          "name": "trackTrade",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "entryPrice": {
+          "name": "entryPrice",
+          "type": "decimal(12,4)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "trackedAt": {
+          "name": "trackedAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "lastPrice": {
+          "name": "lastPrice",
+          "type": "decimal(12,4)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "lastPnlPercent": {
+          "name": "lastPnlPercent",
+          "type": "decimal(12,4)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "trailingPercent": {
+          "name": "trailingPercent",
+          "type": "decimal(8,4)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": "'5'"
+        },
+        "highestPrice": {
+          "name": "highestPrice",
+          "type": "decimal(12,4)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "target1Hit": {
+          "name": "target1Hit",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "trailingStopActive": {
+          "name": "trailingStopActive",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "demandAlertLatched": {
+          "name": "demandAlertLatched",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "closePrice": {
+          "name": "closePrice",
+          "type": "decimal(12,4)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "finalPnlPercent": {
+          "name": "finalPnlPercent",
+          "type": "decimal(12,4)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "closedAt": {
+          "name": "closedAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "enabled": {
+          "name": "enabled",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 1
+        },
+        "createdAt": {
+          "name": "createdAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(now())"
+        },
+        "updatedAt": {
+          "name": "updatedAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "onUpdate": true,
+          "default": "(now())"
+        }
+      },
+      "indexes": {
+        "alert_rules_symbol_unique": {
+          "name": "alert_rules_symbol_unique",
+          "columns": [
+            "symbol"
+          ],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "alert_rules_id": {
+          "name": "alert_rules_id",
+          "columns": [
+            "id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
+    "market_safety_settings": {
+      "name": "market_safety_settings",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "gapThresholdPercent": {
+          "name": "gapThresholdPercent",
+          "type": "decimal(8,4)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'4'"
+        },
+        "newsWindowHours": {
+          "name": "newsWindowHours",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 24
+        },
+        "sessionGuardEnabled": {
+          "name": "sessionGuardEnabled",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 1
+        },
+        "newsFailClosed": {
+          "name": "newsFailClosed",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "updatedAt": {
+          "name": "updatedAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "onUpdate": true,
+          "default": "(now())"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "market_safety_settings_id": {
+          "name": "market_safety_settings_id",
+          "columns": [
+            "id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
+    "permanent_watchlist": {
+      "name": "permanent_watchlist",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "symbol": {
+          "name": "symbol",
+          "type": "varchar(10)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "source": {
+          "name": "source",
+          "type": "varchar(32)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'radar'"
+        },
+        "createdAt": {
+          "name": "createdAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(now())"
+        }
+      },
+      "indexes": {
+        "permanent_watchlist_symbol_unique": {
+          "name": "permanent_watchlist_symbol_unique",
+          "columns": [
+            "symbol"
+          ],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "permanent_watchlist_id": {
+          "name": "permanent_watchlist_id",
+          "columns": [
+            "id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
+    "provider_failure_log": {
+      "name": "provider_failure_log",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "provider": {
+          "name": "provider",
+          "type": "varchar(64)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "ok": {
+          "name": "ok",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "latencyMs": {
+          "name": "latencyMs",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "error": {
+          "name": "error",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "checkedAt": {
+          "name": "checkedAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(now())"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "provider_failure_log_id": {
+          "name": "provider_failure_log_id",
+          "columns": [
+            "id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
+    "provider_health": {
+      "name": "provider_health",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "provider": {
+          "name": "provider",
+          "type": "varchar(64)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "ok": {
+          "name": "ok",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "latencyMs": {
+          "name": "latencyMs",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "totalChecks": {
+          "name": "totalChecks",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "successCount": {
+          "name": "successCount",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "failureCount": {
+          "name": "failureCount",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "lastError": {
+          "name": "lastError",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "lastSuccessAt": {
+          "name": "lastSuccessAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "lastFailureAt": {
+          "name": "lastFailureAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "lastNotifiedAt": {
+          "name": "lastNotifiedAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "circuitOpenUntil": {
+          "name": "circuitOpenUntil",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "updatedAt": {
+          "name": "updatedAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "onUpdate": true,
+          "default": "(now())"
+        }
+      },
+      "indexes": {
+        "provider_health_provider_unique": {
+          "name": "provider_health_provider_unique",
+          "columns": [
+            "provider"
+          ],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "provider_health_id": {
+          "name": "provider_health_id",
+          "columns": [
+            "id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
+    "radar_opportunities": {
+      "name": "radar_opportunities",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "symbol": {
+          "name": "symbol",
+          "type": "varchar(10)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "price": {
+          "name": "price",
+          "type": "decimal(12,4)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "changePercent": {
+          "name": "changePercent",
+          "type": "decimal(12,4)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "volume": {
+          "name": "volume",
+          "type": "decimal(20,0)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "score": {
+          "name": "score",
+          "type": "decimal(12,4)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "demandLow": {
+          "name": "demandLow",
+          "type": "decimal(12,4)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "demandHigh": {
+          "name": "demandHigh",
+          "type": "decimal(12,4)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "atr": {
+          "name": "atr",
+          "type": "decimal(12,4)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'0'"
+        },
+        "gapPercent": {
+          "name": "gapPercent",
+          "type": "decimal(12,4)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'0'"
+        },
+        "gapBlocked": {
+          "name": "gapBlocked",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "stopLoss": {
+          "name": "stopLoss",
+          "type": "decimal(12,4)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "target1": {
+          "name": "target1",
+          "type": "decimal(12,4)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "target2": {
+          "name": "target2",
+          "type": "decimal(12,4)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "target3": {
+          "name": "target3",
+          "type": "decimal(12,4)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "sourceCandleTime": {
+          "name": "sourceCandleTime",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "confirmationClose": {
+          "name": "confirmationClose",
+          "type": "decimal(12,4)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "zoneStatus": {
+          "name": "zoneStatus",
+          "type": "enum('confirmed','unconfirmed')",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'confirmed'"
+        },
+        "breakType": {
+          "name": "breakType",
+          "type": "enum('none','wick_break','confirmed_close_break')",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'none'"
+        },
+        "demandAlertLatched": {
+          "name": "demandAlertLatched",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "provider": {
+          "name": "provider",
+          "type": "varchar(96)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "scannedAt": {
+          "name": "scannedAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(now())"
+        }
+      },
+      "indexes": {
+        "radar_opportunities_symbol_unique": {
+          "name": "radar_opportunities_symbol_unique",
+          "columns": [
+            "symbol"
+          ],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "radar_opportunities_id": {
+          "name": "radar_opportunities_id",
+          "columns": [
+            "id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
+    "radar_settings": {
+      "name": "radar_settings",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "scheduleCronTaskUid": {
+          "name": "scheduleCronTaskUid",
+          "type": "varchar(65)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "enabled": {
+          "name": "enabled",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 1
+        },
+        "lastScanAt": {
+          "name": "lastScanAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "updatedAt": {
+          "name": "updatedAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "onUpdate": true,
+          "default": "(now())"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "radar_settings_id": {
+          "name": "radar_settings_id",
+          "columns": [
+            "id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
+    "telegram_settings": {
+      "name": "telegram_settings",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "chatId": {
+          "name": "chatId",
+          "type": "varchar(128)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "enabled": {
+          "name": "enabled",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 1
+        },
+        "scheduleCronTaskUid": {
+          "name": "scheduleCronTaskUid",
+          "type": "varchar(65)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "createdAt": {
+          "name": "createdAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(now())"
+        },
+        "updatedAt": {
+          "name": "updatedAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "onUpdate": true,
+          "default": "(now())"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "telegram_settings_id": {
+          "name": "telegram_settings_id",
+          "columns": [
+            "id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
+    "users": {
+      "name": "users",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "openId": {
+          "name": "openId",
+          "type": "varchar(64)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "email": {
+          "name": "email",
+          "type": "varchar(320)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "loginMethod": {
+          "name": "loginMethod",
+          "type": "varchar(64)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "role": {
+          "name": "role",
+          "type": "enum('user','admin')",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'user'"
+        },
+        "createdAt": {
+          "name": "createdAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(now())"
+        },
+        "updatedAt": {
+          "name": "updatedAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "onUpdate": true,
+          "default": "(now())"
+        },
+        "lastSignedIn": {
+          "name": "lastSignedIn",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(now())"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "users_id": {
+          "name": "users_id",
+          "columns": [
+            "id"
+          ]
+        }
+      },
+      "uniqueConstraints": {
+        "users_openId_unique": {
+          "name": "users_openId_unique",
+          "columns": [
+            "openId"
+          ]
+        }
+      },
+      "checkConstraint": {}
+    }
+  },
+  "views": {},
+  "_meta": {
+    "schemas": {},
+    "tables": {},
+    "columns": {}
+  },
+  "internal": {
+    "tables": {},
+    "indexes": {}
+  }
+}
