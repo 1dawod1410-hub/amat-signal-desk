@@ -2,7 +2,7 @@ import { aggregateHourlyTo4H, fetchHourlyWithFallback } from "./candleZones";
 
 export type ResistanceBar = { timestamp: Date; high: number; low?: number; open?: number; close?: number };
 export type ResistanceLevel = { price: number; distancePercent: number; riskReward: number | null; sources: string[] };
-export type ResistanceAnalysis = { currentPrice: number; entryPrice: number; stopLoss: number; atr: number; levels: ResistanceLevel[]; warning: boolean; relativeTargets: number[] };
+export type ResistanceAnalysis = { currentPrice: number; entryPrice: number; stopLoss: number; atr: number; levels: ResistanceLevel[]; firstQualifiedLevel: ResistanceLevel | null; warning: boolean; relativeTargets: number[] };
 
 const YAHOO_CHART = "https://query1.finance.yahoo.com/v8/finance/chart";
 
@@ -43,16 +43,23 @@ export function calculateRiskReward(resistance: number, entryPrice: number, stop
   return risk > 0 ? (resistance - entryPrice) / risk : null;
 }
 
+export function filterResistanceCandidates(levels: Array<{ price: number; source: string }>, referencePrice: number, atr: number) {
+  const minimumDistance = 0.5 * atr;
+  return levels.filter((level) => level.price > referencePrice && (atr <= 0 || Math.abs(level.price - referencePrice) >= minimumDistance));
+}
+
 export function analyzeResistances(input: { currentPrice: number; demandLow: number; demandHigh: number; stopLoss: number; fourHourBars: ResistanceBar[]; dailyBars: ResistanceBar[] }) : ResistanceAnalysis {
   const atr = calculateAtr(input.fourHourBars);
   const fourHour = findPivotHighs(input.fourHourBars, 60).map((bar) => ({ price: bar.high, source: "4H pivot" }));
   const daily = findPivotHighs(input.dailyBars, 120).map((bar) => ({ price: bar.high, source: "Daily pivot" }));
   const yearHigh = Math.max(...input.dailyBars.slice(-252).map((bar) => bar.high), 0);
-  const raw = [...fourHour, ...daily, ...(yearHigh > input.currentPrice ? [{ price: yearHigh, source: "52-week high" }] : [])].filter((level) => level.price > input.currentPrice);
   const entryPrice = input.currentPrice >= input.demandLow && input.currentPrice <= input.demandHigh ? input.currentPrice : input.demandHigh;
-  const levels = mergeNearbyLevels(raw, atr).slice(0, 3).map((level) => ({ price: level.price, distancePercent: ((level.price - input.currentPrice) / input.currentPrice) * 100, riskReward: calculateRiskReward(level.price, entryPrice, input.stopLoss), sources: level.sources }))
+  const raw = filterResistanceCandidates([...fourHour, ...daily, ...(yearHigh > input.currentPrice ? [{ price: yearHigh, source: "52-week high" }] : [])], entryPrice, atr);
+  const allLevels = mergeNearbyLevels(raw, atr).map((level) => ({ price: level.price, distancePercent: ((level.price - input.currentPrice) / input.currentPrice) * 100, riskReward: calculateRiskReward(level.price, entryPrice, input.stopLoss), sources: level.sources }))
     .sort((a, b) => a.price - b.price);
-  return { currentPrice: input.currentPrice, entryPrice, stopLoss: input.stopLoss, atr, levels, warning: levels[0]?.riskReward !== null && levels[0]?.riskReward !== undefined && levels[0].riskReward < 1.5, relativeTargets: [input.demandHigh * 1.12, input.demandHigh * 1.30, input.demandHigh * 1.50] };
+  const firstQualifiedLevel = allLevels.find((level) => level.riskReward !== null && level.riskReward >= 1.5) ?? null;
+  const levels = allLevels.slice(0, 3);
+  return { currentPrice: input.currentPrice, entryPrice, stopLoss: input.stopLoss, atr, levels, firstQualifiedLevel, warning: levels[0]?.riskReward !== null && levels[0]?.riskReward !== undefined && levels[0].riskReward < 1.5, relativeTargets: [input.demandHigh * 1.12, input.demandHigh * 1.30, input.demandHigh * 1.50] };
 }
 
 async function fetchDailyBars(symbol: string, lookbackDays = 370): Promise<ResistanceBar[]> {

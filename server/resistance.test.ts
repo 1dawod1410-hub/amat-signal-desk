@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { analyzeResistances, calculateRiskReward, findPivotHighs, firstBreakWithinDays, mergeNearbyLevels } from "./resistance";
+import { analyzeResistances, calculateRiskReward, filterResistanceCandidates, findPivotHighs, firstBreakWithinDays, mergeNearbyLevels } from "./resistance";
 
 const bar = (day: number, high: number, close = high - 1) => ({ timestamp: new Date(`2026-01-${String(day).padStart(2, "0")}T15:00:00Z`), open: close - 1, high, close });
 
@@ -20,6 +20,11 @@ describe("resistance analysis", () => {
     expect(calculateRiskReward(120, 100, 100)).toBeNull();
   });
 
+  it("filters a resistance at 0.3 ATR but keeps one at 0.7 ATR", () => {
+    const filtered = filterResistanceCandidates([{ price: 100.3, source: "near" }, { price: 100.7, source: "valid" }], 100, 1);
+    expect(filtered.map((level) => level.source)).toEqual(["valid"]);
+  });
+
   it("adds the narrow-upside warning below 1.5R", () => {
     const fourHour = Array.from({ length: 20 }, (_, index) => bar(index + 1, 100)); fourHour[10] = bar(11, 104);
     const daily = Array.from({ length: 130 }, (_, index) => bar((index % 28) + 1, 100)); daily[70] = bar(15, 112);
@@ -32,5 +37,12 @@ describe("resistance analysis", () => {
     const daily = [bar(1, 105), bar(2, 115), bar(3, 130)];
     expect(firstBreakWithinDays({ dailyBars: daily, resistanceLevels: [110], relativeTargets: [120], days: 3 })).toBe("مقاومة $110.00");
     expect(firstBreakWithinDays({ dailyBars: daily.slice(1), resistanceLevels: [125], relativeTargets: [120], days: 2 })).toBe("هدف نسبي 1");
+  });
+
+  it("reports no first level when every filtered resistance is below 1.5R", () => {
+    const fourHour = Array.from({ length: 20 }, (_, index) => ({ ...bar(index + 1, 100), low: 99 })); fourHour[10] = { ...bar(11, 104), low: 103 };
+    const daily = Array.from({ length: 130 }, (_, index) => ({ ...bar((index % 28) + 1, 100), low: 99 })); daily[70] = { ...bar(15, 104), low: 103 };
+    const analysis = analyzeResistances({ currentPrice: 100, demandLow: 95, demandHigh: 99, stopLoss: 95, fourHourBars: fourHour, dailyBars: daily });
+    expect(analysis.firstQualifiedLevel).toBeNull();
   });
 });
