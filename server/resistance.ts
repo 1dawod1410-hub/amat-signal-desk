@@ -1,4 +1,5 @@
 import { aggregateHourlyTo4H, fetchHourlyWithFallback } from "./candleZones";
+import { cacheProviderValue, getCachedProviderValue, requestWithBackoff } from "./providerResilience";
 
 export type ResistanceBar = { timestamp: Date; high: number; low?: number; open?: number; close?: number };
 export type ResistanceLevel = { price: number; distancePercent: number; riskReward: number | null; sources: string[] };
@@ -62,17 +63,50 @@ export function analyzeResistances(input: { currentPrice: number; demandLow: num
   return { currentPrice: input.currentPrice, entryPrice, stopLoss: input.stopLoss, atr, levels, firstQualifiedLevel, warning: levels[0]?.riskReward !== null && levels[0]?.riskReward !== undefined && levels[0].riskReward < 1.5, relativeTargets: [input.demandHigh * 1.12, input.demandHigh * 1.30, input.demandHigh * 1.50] };
 }
 
-async function fetchDailyBars(symbol: string, lookbackDays = 370): Promise<ResistanceBar[]> {
+async function fetchYahooDailyBars(symbol: string, lookbackDays = 370): Promise<ResistanceBar[]> {
   const period2 = Math.floor(Date.now() / 1000) + 86400;
   const period1 = period2 - lookbackDays * 86400;
   const url = `${YAHOO_CHART}/${encodeURIComponent(symbol)}?period1=${period1}&period2=${period2}&interval=1d&includePrePost=false`;
   const response = await fetch(url, { headers: { "User-Agent": "SignalDesk-Resistance/1.0" }, signal: AbortSignal.timeout(12_000) });
-  if (!response.ok) throw new Error(`Yahoo daily resistance ${response.status}`);
+  if (!response.ok) { const error = new Error(`Yahoo daily resistance ${response.status}`) as Error & { status?: number }; error.status = response.status; throw error; }
   const result = (await response.json() as any)?.chart?.result?.[0];
   const timestamps = result?.timestamp as number[] | undefined;
   const quote = result?.indicators?.quote?.[0];
   if (!timestamps?.length || !quote) throw new Error(`No daily resistance candles for ${symbol}`);
   return timestamps.map((timestamp, index) => ({ timestamp: new Date(timestamp * 1000), open: Number(quote.open?.[index]), high: Number(quote.high?.[index]), low: Number(quote.low?.[index]), close: Number(quote.close?.[index]) })).filter((bar: ResistanceBar) => [bar.open, bar.high, bar.low, bar.close].every(Number.isFinite));
+}
+
+async function fetchFinnhubDailyBars(symbol: string, lookbackDays = 370): Promise<ResistanceBar[]> {
+  const token = process.env.FINNHUB_API_KEY;
+  if (!token) throw new Error("FINNHUB_API_KEY is not configured");
+  const now = Math.floor(Date.now() / 1000);
+  const url = `https://finnhub.io/api/v1/stock/candle?symbol=${encodeURIComponent(symbol)}&resolution=D&from=${now - lookbackDays * 86400}&to=${now}&token=${encodeURIComponent(token)}`;
+  const response = await fetch(url, { headers: { "User-Agent": "SignalDesk-Resistance/1.0" }, signal: AbortSignal.timeout(12_000) });
+  if (!response.ok) { const error = new Error(`Finnhub daily resistance ${response.status}`) as Error & { status?: number }; error.status = response.status; throw error; }
+  const json = await response.json() as { s?: string; t?: number[]; o?: number[]; h?: number[]; l?: number[]; c?: number[] };
+  if (json.s !== "ok" || !json.t?.length) throw new Error(`No Finnhub daily resistance candles for ${symbol}`);
+  return json.t.map((timestamp, index) => ({ timestamp: new Date(timestamp * 1000), open: Number(json.o?.[index]), high: Number(json.h?.[index]), low: Number(json.l?.[index]), close: Number(json.c?.[index]) })).filter((bar: ResistanceBar) => [bar.open, bar.high, bar.low, bar.close].every(Number.isFinite));
+}
+
+async function fetchDailyBars(symbol: string, lookbackDays = 370): Promise<ResistanceBar[]> {
+  const cacheKey = `daily-resistance:${symbol.toUpperCase()}`;
+  const cached = getCachedProviderValue<ResistanceBar[]>(cacheKey, 24 * 60 * 60 * 1000);
+  if (cached) return cached.value;
+  try {
+    const bars = await requestWithBackoff(`yahoo:daily:${symbol}`, () => fetchYahooDailyBars(symbol, lookbackDays));
+    cacheProviderValue(cacheKey, bars);
+    return bars;
+  } catch (yahooError) {
+    try {
+      const bars = await requestWithBackoff(`finnhub:daily:${symbol}`, () => fetchFinnhubDailyBars(symbol, lookbackDays));
+      cacheProviderValue(cacheKey, bars);
+      return bars;
+    } catch (finnhubError) {
+      const previous = getCachedProviderValue<ResistanceBar[]>(cacheKey, 7 * 24 * 60 * 60 * 1000);
+      if (previous) return previous.value;
+      throw new Error(`Daily resistance unavailable. Yahoo: ${yahooError instanceof Error ? yahooError.message : String(yahooError)}. Finnhub: ${finnhubError instanceof Error ? finnhubError.message : String(finnhubError)}.`);
+    }
+  }
 }
 
 export { fetchDailyBars };

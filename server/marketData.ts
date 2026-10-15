@@ -3,6 +3,7 @@ const YAHOO_TIMESERIES = "https://query1.finance.yahoo.com/ws/fundamentals-times
 const FINNHUB_BASE = "https://finnhub.io/api/v1";
 import { detectGapRisk } from "./technicalFilters";
 import { getMarketSafetySettings, isProviderCircuitOpen, recordProviderHealth } from "./db";
+import { cacheProviderValue, getCachedProviderValue, requestWithBackoff } from "./providerResilience";
 
 type YahooNumber = { raw?: number };
 type YahooSeriesPoint = { asOfDate?: string; reportedValue?: YahooNumber };
@@ -28,6 +29,7 @@ export type MarketData = {
     available: boolean;
   };
   fetchedAt: number;
+  stale?: boolean;
 };
 
 function cleanSymbol(value: string) {
@@ -38,7 +40,7 @@ function cleanSymbol(value: string) {
 
 async function jsonRequest(url: string, headers: Record<string, string> = {}) {
   const response = await fetch(url, { headers, signal: AbortSignal.timeout(12_000) });
-  if (!response.ok) throw new Error(`Provider returned ${response.status}`);
+  if (!response.ok) { const error = new Error(`Provider returned ${response.status}`) as Error & { status?: number }; error.status = response.status; throw error; }
   const json = await response.json() as Record<string, any>;
   if (json.error || json.errorCode) throw new Error(json.error?.description ?? json.errorMessage ?? "Provider returned an error");
   return json;
@@ -130,16 +132,21 @@ async function getFinnhubData(symbol: string): Promise<MarketData> {
 export async function getMarketData(inputSymbol: string): Promise<MarketData> {
   const symbol = cleanSymbol(inputSymbol);
   const started = Date.now();
+  const cacheKey = `market:${symbol}`;
+  const cached = getCachedProviderValue<MarketData>(cacheKey, 15 * 60 * 1000);
+  if (cached) return { ...cached.value, stale: false, fetchedAt: cached.savedAt };
   try {
     if (await isProviderCircuitOpen("Yahoo Finance")) throw new Error("Yahoo circuit breaker open");
-    const data = await getYahooData(symbol); await recordProviderHealth({ provider: "Yahoo Finance", ok: true, latencyMs: Date.now() - started }); return data;
+    const data = await requestWithBackoff(`yahoo:${cacheKey}`, () => getYahooData(symbol)); cacheProviderValue(cacheKey, data); await recordProviderHealth({ provider: "Yahoo Finance", ok: true, latencyMs: Date.now() - started }); return { ...data, stale: false };
   } catch (yahooError) {
     await recordProviderHealth({ provider: "Yahoo Finance", ok: false, latencyMs: Date.now() - started, error: yahooError instanceof Error ? yahooError.message : String(yahooError) });
     try {
       if (await isProviderCircuitOpen("Finnhub")) throw new Error("Finnhub circuit breaker open");
-      const fallbackStarted = Date.now(); const data = await getFinnhubData(symbol); await recordProviderHealth({ provider: "Finnhub", ok: true, latencyMs: Date.now() - fallbackStarted }); return data;
+      const fallbackStarted = Date.now(); const data = await requestWithBackoff(`finnhub:${cacheKey}`, () => getFinnhubData(symbol)); cacheProviderValue(cacheKey, data); await recordProviderHealth({ provider: "Finnhub", ok: true, latencyMs: Date.now() - fallbackStarted }); return { ...data, stale: false };
     } catch (finnhubError) {
       await recordProviderHealth({ provider: "Finnhub", ok: false, latencyMs: Date.now() - started, error: finnhubError instanceof Error ? finnhubError.message : String(finnhubError) });
+      const cached = getCachedProviderValue<MarketData>(cacheKey, 60 * 60 * 1000);
+      if (cached) return { ...cached.value, stale: true, fetchedAt: cached.savedAt };
       const yahooMessage = yahooError instanceof Error ? yahooError.message : "Yahoo unavailable";
       const finnhubMessage = finnhubError instanceof Error ? finnhubError.message : "Finnhub unavailable";
       throw new Error(`Market data unavailable. Yahoo: ${yahooMessage}. Finnhub: ${finnhubMessage}.`);

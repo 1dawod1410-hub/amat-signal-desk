@@ -4,6 +4,7 @@ import { sendTelegramMessage } from "./telegram";
 import { detectGapRisk } from "./technicalFilters";
 import { isRegularUsMarketSession } from "./technicalFilters";
 import { MARKET_UNIVERSE } from "./marketUniverse";
+import { cacheProviderValue, getCachedProviderValue, requestWithBackoff } from "./providerResilience";
 
 export const RADAR_UNIVERSE = MARKET_UNIVERSE;
 const CHART_URL = "https://query1.finance.yahoo.com/v8/finance/chart";
@@ -11,15 +12,47 @@ const CHART_URL = "https://query1.finance.yahoo.com/v8/finance/chart";
 type RadarQuote = { symbol: string; price: number; previousClose: number; currentOpen: number; gapPercent: number; gapBlocked: boolean; changePercent: number; volume: number; provider: string };
 type RadarCandidate = RadarQuote & { zone: NonNullable<ReturnType<typeof findConfirmedDemandZone>>; candleProvider: string };
 
-async function getRadarQuote(symbol: string): Promise<RadarQuote> {
+async function getYahooRadarQuote(symbol: string): Promise<RadarQuote> {
   const url = `${CHART_URL}/${encodeURIComponent(symbol)}?range=5d&interval=1d&includePrePost=false`;
   const response = await fetch(url, { headers: { "User-Agent": "SignalDesk-Radar/2.0" }, signal: AbortSignal.timeout(10_000) });
-  if (!response.ok) throw new Error(`Yahoo ${response.status}`);
+  if (!response.ok) { const error = new Error(`Yahoo ${response.status}`) as Error & { status?: number }; error.status = response.status; throw error; }
   const json = await response.json() as any; const result = json?.chart?.result?.[0]; const meta = result?.meta; const quote = result?.indicators?.quote?.[0];
   const closes = (quote?.close ?? []).filter((x: unknown) => Number.isFinite(x)) as number[]; const opens = (quote?.open ?? []).filter((x: unknown) => Number.isFinite(x)) as number[]; const volumes = (quote?.volume ?? []).filter((x: unknown) => Number.isFinite(x)) as number[];
   const price = Number(meta?.regularMarketPrice ?? closes.at(-1)); const previousClose = Number(meta?.previousClose ?? closes.at(-2) ?? price); const currentOpen = Number(opens.at(-1) ?? price); const gap = detectGapRisk(previousClose, currentOpen); const volume = Number(meta?.regularMarketVolume ?? volumes.at(-1) ?? 0);
   if (!Number.isFinite(price) || !Number.isFinite(previousClose) || price <= 0) throw new Error(`No quote for ${symbol}`);
   return { symbol, price, previousClose, currentOpen, gapPercent: gap.gapPercent, gapBlocked: gap.blocked, changePercent: ((price - previousClose) / previousClose) * 100, volume, provider: "Yahoo Finance chart" };
+}
+
+async function getFinnhubRadarQuote(symbol: string): Promise<RadarQuote> {
+  const token = process.env.FINNHUB_API_KEY;
+  if (!token) throw new Error("FINNHUB_API_KEY is not configured");
+  const response = await fetch(`https://finnhub.io/api/v1/quote?symbol=${encodeURIComponent(symbol)}&token=${encodeURIComponent(token)}`, { headers: { "User-Agent": "SignalDesk-Radar/2.0" }, signal: AbortSignal.timeout(10_000) });
+  if (!response.ok) { const error = new Error(`Finnhub ${response.status}`) as Error & { status?: number }; error.status = response.status; throw error; }
+  const quote = await response.json() as { c?: number; pc?: number; o?: number; d?: number; dp?: number };
+  const price = Number(quote.c); const previousClose = Number(quote.pc); const currentOpen = Number(quote.o ?? price); const gap = detectGapRisk(previousClose, currentOpen);
+  if (!Number.isFinite(price) || !Number.isFinite(previousClose) || price <= 0) throw new Error(`No Finnhub quote for ${symbol}`);
+  return { symbol, price, previousClose, currentOpen, gapPercent: gap.gapPercent, gapBlocked: gap.blocked, changePercent: Number(quote.dp ?? ((price - previousClose) / previousClose) * 100), volume: 0, provider: "Finnhub quote fallback" };
+}
+
+async function getRadarQuote(symbol: string): Promise<RadarQuote> {
+  const cacheKey = `radar-quote:${symbol.toUpperCase()}`;
+  const cached = getCachedProviderValue<RadarQuote>(cacheKey, 15 * 60 * 1000);
+  if (cached) return { ...cached.value, provider: `${cached.value.provider} · cached` };
+  try {
+    const quote = await requestWithBackoff(`yahoo:radar:${symbol}`, () => getYahooRadarQuote(symbol));
+    cacheProviderValue(cacheKey, quote);
+    return quote;
+  } catch (yahooError) {
+    try {
+      const quote = await requestWithBackoff(`finnhub:radar:${symbol}`, () => getFinnhubRadarQuote(symbol));
+      cacheProviderValue(cacheKey, quote);
+      return quote;
+    } catch (finnhubError) {
+      const previous = getCachedProviderValue<RadarQuote>(cacheKey, 24 * 60 * 60 * 1000);
+      if (previous) return { ...previous.value, provider: `${previous.value.provider} · stale cache` };
+      throw new Error(`Radar quote unavailable. Yahoo: ${yahooError instanceof Error ? yahooError.message : String(yahooError)}. Finnhub: ${finnhubError instanceof Error ? finnhubError.message : String(finnhubError)}.`);
+    }
+  }
 }
 
 async function pool<T>(items: readonly string[], limit: number, task: (item: string) => Promise<T>) { const output: T[] = []; let cursor = 0; async function worker() { while (cursor < items.length) { const index = cursor++; try { output[index] = await task(items[index]); } catch { /* skip symbols without usable candles */ } } } await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker)); return output.filter(Boolean); }

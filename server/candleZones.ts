@@ -1,6 +1,7 @@
 export type HourlyBar = { timestamp: Date; open: number; high: number; low: number; close: number; volume: number };
 export type Candle4H = HourlyBar & { bars: number; bodyLow: number; bodyHigh: number; body: number; range: number; lowerWick: number; upperWick: number; bodyRatio: number; volumeMedian20: number | null };
 import { calculateAtr } from "./technicalFilters";
+import { cacheProviderValue, getCachedProviderValue, requestWithBackoff } from "./providerResilience";
 
 export type DemandZone = { symbol: string; demandLow: number; demandHigh: number; atr: number; sourceCandleTime: Date; confirmationClose: number; status: "confirmed" | "unconfirmed"; breakType: "none" | "wick_break" | "confirmed_close_break"; provider: string };
 
@@ -17,7 +18,7 @@ export async function fetchFinnhubHourly(symbol: string, lookbackDays = 30): Pro
   const from = now - lookbackDays * 24 * 60 * 60;
   const url = `${FINNHUB_CANDLES}?symbol=${encodeURIComponent(symbol)}&resolution=60&from=${from}&to=${now}&token=${encodeURIComponent(token)}`;
   const response = await fetch(url, { signal: AbortSignal.timeout(12_000), headers: { "User-Agent": "SignalDesk-CandleScanner/1.0" } });
-  if (!response.ok) throw new Error(`Finnhub candles ${response.status}`);
+  if (!response.ok) { const error = new Error(`Finnhub candles ${response.status}`) as Error & { status?: number }; error.status = response.status; throw error; }
   const json = await response.json() as { s?: string; t?: number[]; o?: number[]; h?: number[]; l?: number[]; c?: number[]; v?: number[] };
   if (json.s !== "ok" || !json.t?.length) throw new Error(`No hourly candles for ${symbol}`);
   return json.t.map((unix, i) => ({ timestamp: new Date(unix * 1000), open: Number(json.o?.[i]), high: Number(json.h?.[i]), low: Number(json.l?.[i]), close: Number(json.c?.[i]), volume: Number(json.v?.[i]) })).filter((bar) => isRegularSessionBar(bar.timestamp) && [bar.open, bar.high, bar.low, bar.close, bar.volume].every(Number.isFinite)).sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
@@ -27,13 +28,11 @@ export async function fetchYahooHourly(symbol: string, lookbackDays = 30): Promi
   const period2 = Math.floor(Date.now() / 1000); const period1 = period2 - lookbackDays * 24 * 60 * 60;
   const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?period1=${period1}&period2=${period2}&interval=60m&includePrePost=false`;
   const response = await fetch(url, { signal: AbortSignal.timeout(12_000), headers: { "User-Agent": "SignalDesk-CandleScanner/1.0" } });
-  if (!response.ok) throw new Error(`Yahoo candles ${response.status}`);
+  if (!response.ok) { const error = new Error(`Yahoo candles ${response.status}`) as Error & { status?: number }; error.status = response.status; throw error; }
   const json = await response.json() as any; const result = json?.chart?.result?.[0]; const timestamps = result?.timestamp as number[] | undefined; const quote = result?.indicators?.quote?.[0];
   if (!timestamps?.length || !quote) throw new Error(`No Yahoo hourly candles for ${symbol}`);
   return timestamps.map((unix, i) => ({ timestamp: new Date(unix * 1000), open: Number(quote.open?.[i]), high: Number(quote.high?.[i]), low: Number(quote.low?.[i]), close: Number(quote.close?.[i]), volume: Number(quote.volume?.[i]) })).filter((bar: HourlyBar) => isRegularSessionBar(bar.timestamp) && [bar.open, bar.high, bar.low, bar.close, bar.volume].every(Number.isFinite)).sort((a: HourlyBar, b: HourlyBar) => a.timestamp.getTime() - b.timestamp.getTime());
 }
-
-export async function fetchHourlyWithFallback(symbol: string) { try { return { bars: await fetchFinnhubHourly(symbol), provider: "Finnhub 60m aggregated to 4H" }; } catch { return { bars: await fetchYahooHourly(symbol), provider: "Yahoo Finance 60m aggregated to 4H" }; } }
 
 export function aggregateHourlyTo4H(hourly: HourlyBar[], now = new Date()): Candle4H[] {
   const byDay = new Map<string, HourlyBar[]>();
@@ -61,6 +60,36 @@ export function addCandleFeatures(candles: Candle4H[]): Candle4H[] {
 }
 
 export function isMagnetOrAccumulation(candle: Candle4H) { return candle.range > 0 && candle.lowerWick >= Math.max(candle.body * 1.5, candle.range * 0.35) && candle.bodyRatio <= 0.55 && (candle.volumeMedian20 === null || candle.volume >= candle.volumeMedian20 * 0.8); }
+
+function completed4hBucket(now = new Date()) {
+  const parts = new Intl.DateTimeFormat("en-CA", { timeZone: NY_TIME, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false }).formatToParts(now).reduce<Record<string, string>>((out, part) => { out[part.type] = part.value; return out; }, {});
+  const minutes = Number(parts.hour) * 60 + Number(parts.minute);
+  if (minutes < 810) return "latest-close";
+  const phase = minutes >= 990 ? "close" : "mid";
+  return `${parts.year}-${parts.month}-${parts.day}:${phase}`;
+}
+
+export async function fetchHourlyWithFallback(symbol: string) {
+  const bucket = completed4hBucket();
+  const cacheKey = `candles:${symbol.toUpperCase()}:${bucket}`;
+  const cached = getCachedProviderValue<{ bars: HourlyBar[]; provider: string; stale?: boolean }>(cacheKey, 7 * 24 * 60 * 60 * 1000);
+  if (cached) return { ...cached.value, stale: false };
+  try {
+    const result = { bars: await requestWithBackoff(`yahoo:candles:${symbol}`, () => fetchYahooHourly(symbol)), provider: "Yahoo Finance 60m aggregated to 4H" };
+    cacheProviderValue(cacheKey, result); cacheProviderValue(`candles:last:${symbol.toUpperCase()}`, result);
+    return result;
+  } catch (yahooError) {
+    try {
+      const result = { bars: await requestWithBackoff(`finnhub:candles:${symbol}`, () => fetchFinnhubHourly(symbol)), provider: "Finnhub 60m aggregated to 4H" };
+      cacheProviderValue(cacheKey, result); cacheProviderValue(`candles:last:${symbol.toUpperCase()}`, result);
+      return result;
+    } catch (finnhubError) {
+      const previous = getCachedProviderValue<{ bars: HourlyBar[]; provider: string }>(`candles:last:${symbol.toUpperCase()}`, 24 * 60 * 60 * 1000);
+      if (previous) return { ...previous.value, stale: true };
+      throw new Error(`Hourly candles unavailable. Yahoo: ${yahooError instanceof Error ? yahooError.message : String(yahooError)}. Finnhub: ${finnhubError instanceof Error ? finnhubError.message : String(finnhubError)}.`);
+    }
+  }
+}
 
 export function findConfirmedDemandZone(candles: Candle4H[], symbol: string, lookback = 30): DemandZone | null {
   const data = candles.slice(-lookback);

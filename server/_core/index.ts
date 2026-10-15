@@ -54,9 +54,15 @@ async function startServer() {
       const user = await sdk.authenticateRequest(req);
       if (!user.isCron || !user.taskUid) return res.status(403).json({ error: "cron-only" });
       const result = await runAlertSweep();
+      const healthBeforeChecks = new Map((await listProviderHealth()).map((health) => [health.provider, health]));
       await checkAllProviders();
       const settings = await getTelegramSettings();
       for (const health of await listProviderHealth()) {
+        const previous = healthBeforeChecks.get(health.provider);
+        const recovered = Boolean(previous && !previous.ok && previous.failureCount >= 3 && health.ok);
+        if (recovered && settings?.enabled && settings.chatId && process.env.TELEGRAM_BOT_TOKEN) {
+          try { await sendTelegramMessage(`Signal Desk\n✅ Provider recovered\n${health.provider} is responding again after ${previous?.failureCount ?? 0} consecutive failures.`, settings.chatId); await markProviderHealthNotified(health.id); } catch { /* retry on a later heartbeat */ }
+        }
         const due = health.failureCount >= 3 && (!health.lastNotifiedAt || Date.now() - health.lastNotifiedAt.getTime() > 6 * 60 * 60 * 1000);
         if (due && settings?.enabled && settings.chatId && process.env.TELEGRAM_BOT_TOKEN) {
           try { await sendTelegramMessage(`Signal Desk\n⚠️ Provider health warning\n${health.provider} failed ${health.failureCount} consecutive checks.\nLast error: ${health.lastError ?? "unknown"}`, settings.chatId); await markProviderHealthNotified(health.id); } catch { /* retry on a later heartbeat */ }
