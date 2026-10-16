@@ -9,7 +9,7 @@ import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
 import { sdk } from "./sdk";
-import { runAlertSweep, sendTelegramMessage } from "../telegram";
+import { formatDataSource, runAlertSweep, sendTelegramMessage } from "../telegram";
 import { scanAndNotifyRadar } from "../radar";
 import { getRadarSettingsByTaskUid, getTelegramSettings, listProviderHealth, markProviderHealthNotified } from "../db";
 import { checkAllProviders } from "../providerHealth";
@@ -61,11 +61,11 @@ async function startServer() {
         const previous = healthBeforeChecks.get(health.provider);
         const recovered = Boolean(previous && !previous.ok && previous.failureCount >= 3 && health.ok);
         if (recovered && settings?.enabled && settings.chatId && process.env.TELEGRAM_BOT_TOKEN) {
-          try { await sendTelegramMessage(`Signal Desk\n✅ Provider recovered\n${health.provider} is responding again after ${previous?.failureCount ?? 0} consecutive failures.`, settings.chatId); await markProviderHealthNotified(health.id); } catch { /* retry on a later heartbeat */ }
+          try { await sendTelegramMessage(`Signal Desk\n✅ Provider recovered\n${health.provider} is responding again after ${previous?.failureCount ?? 0} consecutive failures.\nمصدر البيانات: ${formatDataSource(health.provider, Date.now())}`, settings.chatId); await markProviderHealthNotified(health.id); } catch { /* retry on a later heartbeat */ }
         }
         const due = health.failureCount >= 3 && (!health.lastNotifiedAt || Date.now() - health.lastNotifiedAt.getTime() > 6 * 60 * 60 * 1000);
         if (due && settings?.enabled && settings.chatId && process.env.TELEGRAM_BOT_TOKEN) {
-          try { await sendTelegramMessage(`Signal Desk\n⚠️ Provider health warning\n${health.provider} failed ${health.failureCount} consecutive checks.\nLast error: ${health.lastError ?? "unknown"}`, settings.chatId); await markProviderHealthNotified(health.id); } catch { /* retry on a later heartbeat */ }
+          try { await sendTelegramMessage(`Signal Desk\n⚠️ Provider health warning\n${health.provider} failed ${health.failureCount} consecutive checks.\nLast error: ${health.lastError ?? "unknown"}\nمصدر البيانات: ${formatDataSource(health.provider, Date.now())}`, settings.chatId); await markProviderHealthNotified(health.id); } catch { /* retry on a later heartbeat */ }
         }
       }
       return res.json({ ok: true, ...result });

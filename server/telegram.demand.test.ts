@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_MONITORED_SYMBOLS, formatDemandAlert, isInsideDemand, mergeMonitoredSymbols } from "./telegram";
+import { DEFAULT_MONITORED_SYMBOLS, formatDataSource, formatDemandAlert, isInsideDemand, mergeMonitoredSymbols, noteMarketProvider } from "./telegram";
 import { isWithinTwoTradingSessions } from "./earnings";
 
 describe("individual demand alerts", () => {
@@ -17,6 +17,15 @@ describe("individual demand alerts", () => {
     expect(message).toContain("وقف الخسارة: $109.16");
     expect(message).toContain("الهدف 1: $124.00 — $127.00");
     expect(message).toContain("الهدف 2: $145.00 — $149.00");
+    expect(message).toContain("المصدر: Yahoo · data age 0 min");
+  });
+
+  it("formats provider age and detects a Yahoo to Finnhub transition", () => {
+    expect(formatDataSource("Finnhub quote fallback", Date.now() - 12 * 60_000)).toContain("Finnhub fallback · data age 12 min");
+    const symbol = "TEST-FALLBACK";
+    expect(noteMarketProvider(symbol, "Yahoo Finance")).toBe(false);
+    expect(noteMarketProvider(symbol, "Finnhub", true)).toBe(true);
+    expect(noteMarketProvider(symbol, "Finnhub", true)).toBe(false);
   });
 
   it("adds the earnings warning without changing the technical alert", () => {

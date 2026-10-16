@@ -28,13 +28,18 @@ export function telegramConfigured() { return Boolean(process.env.TELEGRAM_BOT_T
 export function isInsideDemand(price: number, low: number, high: number) { return price >= low && price <= high; }
 export const DEFAULT_MONITORED_SYMBOLS = MARKET_UNIVERSE;
 export function mergeMonitoredSymbols(saved: string[], rules: string[]) { return Array.from(new Set([...DEFAULT_MONITORED_SYMBOLS, ...saved, ...rules].map((symbol) => symbol.trim().toUpperCase()).filter(Boolean))); }
-export function formatDemandAlert(input: { symbol: string; price: number; demandLow: number; demandHigh: number; stopLoss: number; target1Low: number; target1High: number; target2Low: number; target2High: number; provider: string; trackedPnl?: number | null; entryPrice?: number | null; earningsWarning?: boolean; earningsDate?: string | null; resistance?: ResistanceAnalysis | null }) {
+function providerLabel(provider: string) { const cached = /stale cache/i.test(provider) ? " · stale cache" : /cached/i.test(provider) ? " · cached" : ""; const label = /finnhub/i.test(provider) ? `Finnhub fallback${/4h|60m/i.test(provider) ? " 4H" : ""}` : /yahoo/i.test(provider) ? `Yahoo${/4h|60m/i.test(provider) ? " 4H" : ""}` : provider; return `${label}${cached}`; }
+export function formatDataSource(provider: string, fetchedAt?: number | Date | null) { const timestamp = fetchedAt instanceof Date ? fetchedAt.getTime() : Number(fetchedAt); const age = Number.isFinite(timestamp) && timestamp > 0 ? Math.max(0, Math.floor((Date.now() - timestamp) / 60_000)) : 0; return `${providerLabel(provider)} · data age ${age} min`; }
+const lastMarketProvider = new Map<string, "Yahoo" | "Finnhub">();
+export function noteMarketProvider(symbol: string, provider: string, fallbackUsed = false) { const current = fallbackUsed || /finnhub/i.test(provider) ? "Finnhub" : "Yahoo"; const previous = lastMarketProvider.get(symbol); lastMarketProvider.set(symbol, current); return previous === "Yahoo" && current === "Finnhub"; }
+export async function notifyFinnhubFallbackTransition(symbol: string, provider: string, fetchedAt: number | Date | null | undefined, chatId?: string, fallbackUsed = false, sourceLine?: string) { if (!noteMarketProvider(symbol, provider, fallbackUsed)) return false; try { await sendTelegramMessage(`Signal Desk\n⚠️ Provider fallback activated\n${symbol} switched from Yahoo to Finnhub fallback.\nمصدر البيانات: ${sourceLine ?? formatDataSource(provider, fetchedAt)}`, chatId); return true; } catch { return false; } }
+export function formatDemandAlert(input: { symbol: string; price: number; demandLow: number; demandHigh: number; stopLoss: number; target1Low: number; target1High: number; target2Low: number; target2High: number; provider: string; sourceLine?: string; dataFetchedAt?: number | Date | null; trackedPnl?: number | null; entryPrice?: number | null; earningsWarning?: boolean; earningsDate?: string | null; resistance?: ResistanceAnalysis | null }) {
   const pnlLine = input.trackedPnl === null || input.trackedPnl === undefined || input.entryPrice === null || input.entryPrice === undefined ? "" : `\nP/L من الدخول $${input.entryPrice.toFixed(2)}: ${input.trackedPnl >= 0 ? "+" : ""}${input.trackedPnl.toFixed(2)}%`;
   const earningsLine = input.earningsWarning ? `\n⚠️ HIGH RISK: Upcoming Earnings Release${input.earningsDate ? ` (${input.earningsDate})` : ""}` : "";
   const resistanceLine = input.resistance?.levels.length ? `\nأهداف المقاومات: ${formatResistanceSummary(input.resistance)}` : "";
   const qualifiedLine = input.resistance?.firstQualifiedLevel ? `\nأول مستوى عائده/مخاطرته >= 1.5: $${input.resistance.firstQualifiedLevel.price.toFixed(2)} (البعد ${input.resistance.firstQualifiedLevel.distancePercent.toFixed(2)}%)` : "\nلا يوجد مستوى بعائد/مخاطرة >= 1.5 ضمن المقاومات المكتشفة";
   const warningLine = input.resistance?.warning ? "\n⚠️ مساحة الصعود ضيقة" : "";
-  return `Signal Desk · تنبيه منطقة الطلب${earningsLine}${warningLine}\nالسهم: ${input.symbol}\nالسعر الحالي: $${input.price.toFixed(2)}\nمنطقة الدخول: $${input.demandLow.toFixed(2)} — $${input.demandHigh.toFixed(2)}\nوقف الخسارة: $${input.stopLoss.toFixed(2)}\nالهدف 1: $${input.target1Low.toFixed(2)} — $${input.target1High.toFixed(2)} · أهداف نسبية\nالهدف 2: $${input.target2Low.toFixed(2)} — $${input.target2High.toFixed(2)} · أهداف نسبية${resistanceLine}${qualifiedLine}${pnlLine}\nالمصدر: ${input.provider}`;
+  return `Signal Desk · تنبيه منطقة الطلب${earningsLine}${warningLine}\nالسهم: ${input.symbol}\nالسعر الحالي: $${input.price.toFixed(2)}\nمنطقة الدخول: $${input.demandLow.toFixed(2)} — $${input.demandHigh.toFixed(2)}\nوقف الخسارة: $${input.stopLoss.toFixed(2)}\nالهدف 1: $${input.target1Low.toFixed(2)} — $${input.target1High.toFixed(2)} · أهداف نسبية\nالهدف 2: $${input.target2Low.toFixed(2)} — $${input.target2High.toFixed(2)} · أهداف نسبية${resistanceLine}${qualifiedLine}${pnlLine}\nالمصدر: ${input.sourceLine ?? formatDataSource(input.provider, input.dataFetchedAt)}`;
 }
 
 async function refreshResistanceOutcomes() {
@@ -87,16 +92,18 @@ export async function runAlertSweep() {
     if (market.quote.gapBlocked) return 0;
 
     const trailing = rule?.trackTrade ? await updateTrackedPrices(symbol, price) : null;
+    await notifyFinnhubFallbackTransition(symbol, market.provider, market.fetchedAt, settings.chatId, market.fallbackUsed);
     if (trailing?.promoted && rule && !(await hasRecentAlert(symbol, "trailingStop", 120))) {
       let trailingResistance: ResistanceAnalysis | null = null;
       try { trailingResistance = await getResistanceAnalysis(symbol, price, Number(rule.demandLow), Number(rule.demandHigh), Number(trailing.trailingStop ?? rule.stopLoss ?? (Number(rule.demandLow) * 0.982))); } catch { /* resistance enrichment must not block trailing alerts */ }
       const qualifiedLine = trailingResistance?.firstQualifiedLevel ? `أول مستوى عائده/مخاطرته >= 1.5: $${trailingResistance.firstQualifiedLevel.price.toFixed(2)} (البعد ${trailingResistance.firstQualifiedLevel.distancePercent.toFixed(2)}%)\n` : "لا يوجد مستوى بعائد/مخاطرة >= 1.5 ضمن المقاومات المكتشفة\n";
-      const message = `Signal Desk\n${symbol} · Trailing Stop مفعّل\nالهدف الأول تحقق عند $${price.toFixed(2)}\nالوقف الجديد: $${Number(trailing.trailingStop).toFixed(2)}\n${trailingResistance?.levels.length ? `أهداف المقاومات: ${formatResistanceSummary(trailingResistance)}\n` : ""}${qualifiedLine}${trailingResistance?.warning ? "⚠️ مساحة الصعود ضيقة\n" : ""}حماية مستمرة للأرباح من أعلى سعر مسجل.`;
+      const message = `Signal Desk\n${symbol} · Trailing Stop مفعّل\nالهدف الأول تحقق عند $${price.toFixed(2)}\nالوقف الجديد: $${Number(trailing.trailingStop).toFixed(2)}\n${trailingResistance?.levels.length ? `أهداف المقاومات: ${formatResistanceSummary(trailingResistance)}\n` : ""}${qualifiedLine}${trailingResistance?.warning ? "⚠️ مساحة الصعود ضيقة\n" : ""}مصدر البيانات: ${formatDataSource(market.provider, market.fetchedAt)}\nحماية مستمرة للأرباح من أعلى سعر مسجل.`;
       try { await sendTelegramMessage(message, settings.chatId); await addAlertHistory({ symbol, alertType: "trailingStop", price: price.toFixed(2), rangeLabel: `وقف متحرك $${Number(trailing.trailingStop).toFixed(2)}`, provider: market.provider, delivery: "telegram", resistanceJson: trailingResistance ? JSON.stringify({ levels: trailingResistance.levels, relativeTargets: trailingResistance.relativeTargets }) : null, resistanceWarning: trailingResistance?.warning ? 1 : 0 }); } catch { /* retry on next heartbeat */ }
     }
 
     let liveZone = null;
-    try { const candles = await fetchHourlyWithFallback(symbol); liveZone = findConfirmedDemandZone(aggregateHourlyTo4H(candles.bars), symbol); } catch { /* use the saved rule as a fallback */ }
+    let candleData: Awaited<ReturnType<typeof fetchHourlyWithFallback>> | null = null;
+    try { candleData = await fetchHourlyWithFallback(symbol); liveZone = findConfirmedDemandZone(aggregateHourlyTo4H(candleData.bars), symbol); } catch { /* use the saved rule as a fallback */ }
     const demandLow = liveZone?.demandLow ?? (rule ? Number(rule.demandLow) : NaN);
     const demandHigh = liveZone?.demandHigh ?? (rule ? Number(rule.demandHigh) : NaN);
     if (!Number.isFinite(demandLow) || !Number.isFinite(demandHigh)) return 0;
@@ -119,7 +126,8 @@ export async function runAlertSweep() {
     try { resistance = await getResistanceAnalysis(symbol, price, demandLow, demandHigh, Number(rule?.stopLoss ?? demandLow * 0.982)); } catch { /* resistance enrichment must not block existing alerts */ }
     if (rule && !(await claimDemandAlert(symbol))) return 0;
     const provider = `${market.provider}; ${liveZone?.provider ?? "saved alert rule"}`;
-    const message = formatDemandAlert({ symbol, price, demandLow, demandHigh, stopLoss: Number(rule?.stopLoss ?? demandLow * 0.982), target1Low: Number(rule?.target1Low ?? entry * 1.10), target1High: Number(rule?.target1High ?? entry * 1.15), target2Low: Number(rule?.target2Low ?? entry * 1.30), target2High: Number(rule?.target2High ?? entry * 1.33), provider, trackedPnl, entryPrice: rule?.entryPrice ? Number(rule.entryPrice) : null, earningsWarning: earnings.highRisk, earningsDate: earnings.earningsDate, resistance });
+    const sourceLine = [formatDataSource(market.provider, market.fetchedAt), candleData ? formatDataSource(candleData.provider, candleData.fetchedAt) : null].filter(Boolean).join("; ");
+    const message = formatDemandAlert({ symbol, price, demandLow, demandHigh, stopLoss: Number(rule?.stopLoss ?? demandLow * 0.982), target1Low: Number(rule?.target1Low ?? entry * 1.10), target1High: Number(rule?.target1High ?? entry * 1.15), target2Low: Number(rule?.target2Low ?? entry * 1.30), target2High: Number(rule?.target2High ?? entry * 1.33), provider, sourceLine, trackedPnl, entryPrice: rule?.entryPrice ? Number(rule.entryPrice) : null, earningsWarning: earnings.highRisk, earningsDate: earnings.earningsDate, resistance });
     try {
       await sendTelegramMessage(message, settings.chatId);
       demandAlertLatches.add(symbol);

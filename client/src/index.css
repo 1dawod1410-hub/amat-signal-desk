@@ -355,6 +355,7 @@ h1 span { color: #81918f; font-size: 11px; letter-spacing: .1em; vertical-align:
 .resistance-row strong, .resistance-row b { color: #e5f4ef; font-family: "Space Grotesk", sans-serif; direction: ltr; }
 .resistance-warning { margin-top: 10px; color: #ffd28a; font-size: 11px; }
 .resistance-qualified { margin-top: 10px; color: #9edfc9; font-size: 11px; }
+.radar-source { display: block; margin-top: 9px; color: #78918a; font-size: 9px; line-height: 1.5; }
 .radar-actions { display: flex; gap: 7px; margin-top: 13px; }
 .radar-actions button { flex: 1; padding: 8px 7px; font-size: 10px; }
 @media (max-width: 1000px) { .radar-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .trade-range-form { grid-template-columns: repeat(3, minmax(0, 1fr)); } }

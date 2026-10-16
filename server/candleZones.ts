@@ -72,20 +72,20 @@ function completed4hBucket(now = new Date()) {
 export async function fetchHourlyWithFallback(symbol: string) {
   const bucket = completed4hBucket();
   const cacheKey = `candles:${symbol.toUpperCase()}:${bucket}`;
-  const cached = getCachedProviderValue<{ bars: HourlyBar[]; provider: string; stale?: boolean }>(cacheKey, 7 * 24 * 60 * 60 * 1000);
-  if (cached) return { ...cached.value, stale: false };
+  const cached = getCachedProviderValue<{ bars: HourlyBar[]; provider: string; fetchedAt: number; stale?: boolean }>(cacheKey, 7 * 24 * 60 * 60 * 1000);
+  if (cached) return { ...cached.value, stale: false, fetchedAt: cached.savedAt };
   try {
-    const result = { bars: await requestWithBackoff(`yahoo:candles:${symbol}`, () => fetchYahooHourly(symbol)), provider: "Yahoo Finance 60m aggregated to 4H" };
+    const result = { bars: await requestWithBackoff(`yahoo:candles:${symbol}`, () => fetchYahooHourly(symbol)), provider: "Yahoo Finance 60m aggregated to 4H", fetchedAt: Date.now() };
     cacheProviderValue(cacheKey, result); cacheProviderValue(`candles:last:${symbol.toUpperCase()}`, result);
     return result;
   } catch (yahooError) {
     try {
-      const result = { bars: await requestWithBackoff(`finnhub:candles:${symbol}`, () => fetchFinnhubHourly(symbol)), provider: "Finnhub 60m aggregated to 4H" };
+      const result = { bars: await requestWithBackoff(`finnhub:candles:${symbol}`, () => fetchFinnhubHourly(symbol)), provider: "Finnhub 60m aggregated to 4H", fetchedAt: Date.now() };
       cacheProviderValue(cacheKey, result); cacheProviderValue(`candles:last:${symbol.toUpperCase()}`, result);
       return result;
     } catch (finnhubError) {
-      const previous = getCachedProviderValue<{ bars: HourlyBar[]; provider: string }>(`candles:last:${symbol.toUpperCase()}`, 24 * 60 * 60 * 1000);
-      if (previous) return { ...previous.value, stale: true };
+      const previous = getCachedProviderValue<{ bars: HourlyBar[]; provider: string; fetchedAt: number }>(`candles:last:${symbol.toUpperCase()}`, 24 * 60 * 60 * 1000);
+      if (previous) return { ...previous.value, stale: true, fetchedAt: previous.savedAt };
       throw new Error(`Hourly candles unavailable. Yahoo: ${yahooError instanceof Error ? yahooError.message : String(yahooError)}. Finnhub: ${finnhubError instanceof Error ? finnhubError.message : String(finnhubError)}.`);
     }
   }
